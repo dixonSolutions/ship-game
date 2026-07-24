@@ -24,10 +24,20 @@ export interface DialogueResponseDto {
   voiceHint?: string;
 }
 
+function resolveApiBase(): string {
+  if (typeof window !== 'undefined') {
+    const fromQuery = new URLSearchParams(window.location.search).get('api');
+    if (fromQuery) return fromQuery.replace(/\/$/, '');
+    const fromWindow = (window as Window & { __SHIP_GAME_API__?: string }).__SHIP_GAME_API__;
+    if (fromWindow) return fromWindow.replace(/\/$/, '');
+  }
+  return environment.apiBaseUrl.replace(/\/$/, '');
+}
+
 @Injectable({ providedIn: 'root' })
 export class DialogueApiService {
   private readonly http = inject(HttpClient);
-  private readonly apiBase = environment.apiBaseUrl;
+  private readonly apiBase = resolveApiBase();
 
   async askCrew(request: DialogueRequestDto): Promise<DialogueResponseDto> {
     return firstValueFrom(
