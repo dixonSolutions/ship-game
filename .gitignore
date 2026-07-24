@@ -1,0 +1,56 @@
+# Secrets & credentials — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+aws-credentials*
+.aws/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+.yarn/
+.npm/
+
+# Build output
+dist/
+build/
+out/
+.tmp/
+.angular/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Caches & local state
+.cache/
+.parcel-cache/
+.eslintcache
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+.local/
+tmp/
+temp/
+
+# Test & tooling
+playwright-report/
+test-results/
+.nyc_output/
+
+# OS / editor
+*.orig
+*~
+
+# Generated audio / local media cache
+.audio-cache/
+server/.audio-cache/
