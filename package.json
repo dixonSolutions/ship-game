@@ -11,7 +11,7 @@
   "scripts": {
     "start": "concurrently -n client,server -c cyan,magenta \"npm run start:client\" \"npm run start:server\"",
     "start:client": "npm run start -w client",
-    "start:server": "npm run start -w server",
+    "start:server": "PORT=${PORT:-8787} npm run start -w server",
     "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
     "lint": "npm run lint -w client && npm run lint -w server && npm run lint -w shared",
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w client",
