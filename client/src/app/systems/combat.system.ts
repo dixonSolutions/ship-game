@@ -108,14 +108,14 @@ export class CombatSystem {
       y: ai.ship.position.y + 1.2,
       z: ai.ship.position.z,
     };
-    const damage = 0.08 * (0.8 + Math.random() * 0.4);
+    const damage = 0.045 * (0.8 + Math.random() * 0.35);
     return {
       originId: ai.id,
       targetId: 'player',
       damage,
       origin,
       target: { ...player.position, y: player.position.y + 1 },
-      hit: Math.random() > 0.25,
+      hit: Math.random() > 0.4,
     };
   }
 

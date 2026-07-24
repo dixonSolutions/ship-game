@@ -54,3 +54,7 @@ test-results/
 # Generated audio / local media cache
 .audio-cache/
 server/.audio-cache/
+
+# Local browser / tooling state
+browseros.db
+*.db-journal

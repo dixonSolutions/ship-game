@@ -59,4 +59,30 @@ describe('API security skeleton', () => {
     const body = JSON.stringify(res.body);
     expect(body).not.toMatch(/AWS_|SECRET|ACCESS_KEY/i);
   });
+
+  it('enforces dialogue rate limits without leaking internals', async () => {
+    const tightApp = createApp({
+      ...testConfig,
+      BEDROCK_RATE_LIMIT_PER_MINUTE: 2,
+    });
+    const payload = {
+      context: {
+        crewRole: 'helmsman',
+        crewName: 'Bram',
+        shipName: 'Sea Lark',
+        weather: 'clear',
+        combatState: 'peaceful',
+        windStrength: 0.4,
+        hullIntegrity: 1,
+      },
+      playerLine: 'Steady as she goes.',
+    };
+
+    expect((await request(tightApp).post('/api/dialogue').send(payload)).status).toBe(200);
+    expect((await request(tightApp).post('/api/dialogue').send(payload)).status).toBe(200);
+    const limited = await request(tightApp).post('/api/dialogue').send(payload);
+    expect(limited.status).toBe(429);
+    expect(limited.body.error).toBe('rate_limited');
+    expect(JSON.stringify(limited.body)).not.toMatch(/AWS_|SECRET|ACCESS_KEY|stack/i);
+  });
 });

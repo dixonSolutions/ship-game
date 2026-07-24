@@ -51,6 +51,8 @@ export class GameEngineService {
   private raf = 0;
   private lastTs = 0;
   private dialogueInFlight = false;
+  /** Seconds of combat grace after casting off / refitting. */
+  private voyageGrace = 0;
 
   readonly snapshot = signal<GameSnapshot>(this.createInitialSnapshot());
 
@@ -74,13 +76,22 @@ export class GameEngineService {
   }
 
   beginVoyage(): void {
-    const s = this.snapshot();
-    this.snapshot.set({ ...s, phase: 'playing', dialogueLine: undefined, lastError: undefined });
+    const settings = this.snapshot().settings;
+    const fresh = this.createInitialSnapshot();
+    this.voyageGrace = 12;
+    this.snapshot.set({
+      ...fresh,
+      settings,
+      phase: 'playing',
+      dialogueLine: undefined,
+      lastError: undefined,
+    });
   }
 
   restartVoyage(): void {
     const settings = this.snapshot().settings;
     const fresh = this.createInitialSnapshot();
+    this.voyageGrace = 12;
     this.snapshot.set({ ...fresh, settings, phase: 'playing' });
   }
 
@@ -143,6 +154,9 @@ export class GameEngineService {
     const s = this.snapshot();
     if (s.phase !== 'playing') return;
 
+    this.voyageGrace = Math.max(0, this.voyageGrace - dt);
+    const inGrace = this.voyageGrace > 0;
+
     const weatherTick = this.weatherSys.update(s.weather, s.wind, dt);
     const ocean = this.oceanSys.update(
       s.ocean,
@@ -178,17 +192,19 @@ export class GameEngineService {
       }
     }
 
-    // AI return fire
-    for (let i = 0; i < aiShips.length; i++) {
-      const ai = aiShips[i]!;
-      const shot = this.combatSys.resolveAiShot(ai, player);
-      if (!shot) continue;
-      aiShips[i] = this.aiSys.markFired(ai);
-      shotVisuals = [...shotVisuals, ...this.combatSys.createShotVisuals(shot)];
-      this.audio.playCannon(0.55);
-      if (shot.hit) {
-        player = this.combatSys.applyDamage(player, shot.damage);
-        this.audio.playImpact(0.85);
+    // AI return fire (disabled during voyage grace so players can learn the ropes)
+    if (!inGrace) {
+      for (let i = 0; i < aiShips.length; i++) {
+        const ai = aiShips[i]!;
+        const shot = this.combatSys.resolveAiShot(ai, player);
+        if (!shot) continue;
+        aiShips[i] = this.aiSys.markFired(ai);
+        shotVisuals = [...shotVisuals, ...this.combatSys.createShotVisuals(shot)];
+        this.audio.playCannon(0.55);
+        if (shot.hit) {
+          player = this.combatSys.applyDamage(player, shot.damage);
+          this.audio.playImpact(0.85);
+        }
       }
     }
 
@@ -200,12 +216,12 @@ export class GameEngineService {
     const hostiles = aiShips.filter((a) => a.hostile);
     const hostilesAlive = hostiles.filter((a) => a.ship.hullIntegrity > 0);
 
-    if (player.hullIntegrity <= 0 && player.sinkProgress > 0.85) {
+    if (!inGrace && player.hullIntegrity <= 0 && player.sinkProgress > 0.85) {
       phase = 'defeat';
       combatState = 'sinking';
     } else if (player.hullIntegrity <= 0) {
       combatState = 'sinking';
-    } else if (hostiles.length > 0 && hostilesAlive.length === 0) {
+    } else if (!inGrace && hostiles.length > 0 && hostilesAlive.length === 0) {
       phase = 'victory';
       combatState = 'peaceful';
     } else if (hostilesAlive.some((a) => {
@@ -304,10 +320,10 @@ export class GameEngineService {
       controls: { ...DEFAULT_CONTROLS },
       crew: this.crewSys.createDefaultCrew(),
       aiShips: [
-        this.aiSys.createPatrol('merchant', 48, -28, false),
-        this.aiSys.createPatrol('navy', -55, -40, false),
-        this.aiSys.createPatrol('pirate', -38, 52, true),
-        this.aiSys.createPatrol('pirate', 30, 60, true),
+        this.aiSys.createPatrol('merchant', 68, -42, false),
+        this.aiSys.createPatrol('navy', -72, -55, false),
+        this.aiSys.createPatrol('pirate', -58, 78, true),
+        this.aiSys.createPatrol('pirate', 70, 85, true),
       ],
       combatState: 'peaceful',
       reloadRemaining: 0,
