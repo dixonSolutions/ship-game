@@ -18,6 +18,10 @@ export type GamePhase =
   | 'defeat'
   | 'error';
 
+export type GraphicsQuality = 'low' | 'medium' | 'high';
+
+export type CrewRole = 'captain' | 'helmsman' | 'gunner' | 'lookout' | 'boatswain';
+
 export interface Vec3 {
   x: number;
   y: number;
@@ -44,6 +48,8 @@ export interface OceanState {
   waveLength: number;
   chop: number;
   time: number;
+  /** Extra swell pulse used by tsunami events. */
+  tsunamiPulse: number;
 }
 
 export interface WeatherState {
@@ -51,6 +57,8 @@ export interface WeatherState {
   visibility: number;
   precipitation: number;
   lightningChance: number;
+  /** 0–1 flash intensity driven by the weather system. */
+  lightningFlash: number;
 }
 
 export interface ShipState {
@@ -61,13 +69,18 @@ export interface ShipState {
   pitch: number;
   hullIntegrity: number;
   sailIntegrity: number;
+  /** 0–1 sink progress after hull reaches zero. */
+  sinkProgress: number;
 }
 
 export interface CrewMember {
   id: string;
   name: string;
-  role: 'captain' | 'helmsman' | 'gunner' | 'lookout' | 'boatswain';
+  role: CrewRole;
   morale: number;
+  /** Local offset on the player deck for procedural avatar placement. */
+  deckOffset: Vec3;
+  voiceId: string;
 }
 
 export interface AiShipState {
@@ -75,6 +88,29 @@ export interface AiShipState {
   faction: 'merchant' | 'navy' | 'pirate';
   ship: ShipState;
   hostile: boolean;
+  reloadTimer: number;
+  broadsideSide: 1 | -1;
+}
+
+export interface ShotVisual {
+  id: string;
+  origin: Vec3;
+  target: Vec3;
+  age: number;
+  lifetime: number;
+  kind: 'cannon' | 'impact' | 'smoke';
+}
+
+export interface AccessibilitySettings {
+  reduceMotion: boolean;
+  highContrast: boolean;
+}
+
+export interface GameSettings {
+  graphicsQuality: GraphicsQuality;
+  masterVolume: number;
+  waveScale: number;
+  accessibility: AccessibilitySettings;
 }
 
 export interface GameSnapshot {
@@ -88,5 +124,10 @@ export interface GameSnapshot {
   crew: CrewMember[];
   aiShips: AiShipState[];
   combatState: CombatState;
+  reloadRemaining: number;
+  lastHitMarker?: { targetId: string; damage: number; age: number };
+  shotVisuals: ShotVisual[];
+  settings: GameSettings;
+  dialogueLine?: string;
   lastError?: string;
 }

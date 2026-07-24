@@ -1,20 +1,43 @@
 import type { ShipControls, WindState } from './types';
 
-/** Wind influence on sail thrust (stub-ready for full aero model). */
+/**
+ * Simplified sailing polar:
+ * - best thrust on a beam reach (~90°)
+ * - reduced on a run
+ * - heavy penalty when pointing too close to the wind
+ */
 export class WindSystem {
+  /** Returns normalized thrust contribution in [0, 1]. */
   update(wind: WindState, heading: number, controls: ShipControls): number {
-    const sailEfficiency = Math.max(0, Math.min(1, controls.sailTrim));
+    const sailEfficiency = clamp(controls.sailTrim, 0, 1);
     const relative = wrapAngle(wind.directionRad - heading);
-    // Simplified polar: best on a beam reach (~90°), poor dead into wind.
-    const angleFactor = Math.max(0, Math.sin(Math.abs(relative)));
-    const intoWindPenalty = Math.abs(relative) < 0.6 ? 0.15 : 1;
-    return wind.strength * sailEfficiency * angleFactor * intoWindPenalty;
+    const absRel = Math.abs(relative);
+
+    // Close-hauled no-go zone (~35°).
+    if (absRel < 0.6) {
+      return wind.strength * sailEfficiency * 0.12;
+    }
+
+    // Beam reach sweet spot, softer on a dead run.
+    const reach = Math.sin(absRel);
+    const runSoftening = absRel > 2.4 ? 0.55 : 1;
+    return wind.strength * sailEfficiency * reach * runSoftening;
+  }
+
+  /** Lateral heeling force from wind pressure on sails. */
+  heelForce(wind: WindState, heading: number, sailTrim: number): number {
+    const relative = wrapAngle(wind.directionRad - heading);
+    return Math.sin(relative) * wind.strength * clamp(sailTrim, 0, 1) * 0.35;
   }
 }
 
-function wrapAngle(rad: number): number {
+export function wrapAngle(rad: number): number {
   let a = rad;
   while (a > Math.PI) a -= Math.PI * 2;
   while (a < -Math.PI) a += Math.PI * 2;
   return a;
+}
+
+function clamp(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
 }

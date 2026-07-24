@@ -8,18 +8,30 @@
 | `S` / `↓` | Decrease sail trim |
 | `Q` / `←` | Rudder port |
 | `E` / `→` | Rudder starboard |
-| `Shift` | Throttle assist |
-| `Space` | Fire cannons |
-| `A` | Toggle anchor |
+| `Shift` / `Z` | Throttle assist (oars/engine stub) |
+| `Space` / `F` | Fire cannons |
+| `A` / `X` | Toggle anchor |
 | `Esc` | Pause / resume |
 
 ## Mouse
 
-HUD and settings use Optimus UI controls. Scene look/aim refinements are planned.
+| Input | Action |
+| --- | --- |
+| Move (drag on scene) | Aim cannons (yaw / pitch) |
+| HUD / settings | Optimus UI buttons and sliders |
+
+Aim reticle is drawn in the 3D scene as a gold assist line.
 
 ## Touch
 
-Large HUD buttons and settings sliders are touch-friendly. Virtual stick / sail gestures are on the roadmap.
+On coarse pointers / narrow viewports, a bottom-right touch pad appears:
+
+- ◀ ▶ steer
+- Sail+ / Sail− trim
+- Fire
+- Anchor / Raise
+
+Settings sliders and pause remain available from the pause overlay.
 
 ## Gamepad
 
@@ -27,9 +39,23 @@ Large HUD buttons and settings sliders are touch-friendly. Virtual stick / sail 
 | --- | --- |
 | Left stick X | Rudder |
 | Left stick Y | Sail trim |
+| Right stick | Cannon aim |
 | RT | Throttle |
-| A / Cross | Fire |
+| A / Cross / RB | Fire |
+| X / Square | Toggle anchor |
+
+## Settings (pause menu)
+
+- Master volume
+- Wind strength
+- Wave scale
+- Time of day
+- Weather preset (clear → tsunami)
+- Graphics quality (low / medium / high)
+- Reduce motion
+- High contrast HUD
 
 ## Accessibility
 
-Settings expose master volume; further reduced-motion / colorblind options are planned (see roadmap).
+- **Reduce motion** slows sky time drift and camera lerp aggressiveness.
+- **High contrast HUD** strengthens HUD cluster borders/backgrounds and softens fog density.

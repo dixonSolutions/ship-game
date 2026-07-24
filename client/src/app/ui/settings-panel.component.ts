@@ -3,14 +3,15 @@ import { FormsModule } from '@angular/forms';
 import { Button } from '@openng/optimus-ui/button';
 import { Select } from '@openng/optimus-ui/select';
 import { Slider } from '@openng/optimus-ui/slider';
+import { ToggleSwitch } from '@openng/optimus-ui/toggleswitch';
 import { GameEngineService } from '../game/game-engine.service';
 import { AudioService } from '../game/audio.service';
-import type { WeatherId } from '../systems/types';
+import type { GraphicsQuality, WeatherId } from '../systems/types';
 
 @Component({
   selector: 'app-settings-panel',
   standalone: true,
-  imports: [FormsModule, Button, Select, Slider],
+  imports: [FormsModule, Button, Select, Slider, ToggleSwitch],
   template: `
     @if (open()) {
       <aside class="panel" role="dialog" aria-label="Settings">
@@ -30,6 +31,11 @@ import type { WeatherId } from '../systems/types';
         </label>
 
         <label>
+          Wave scale
+          <p-slider [(ngModel)]="waveScale" [min]="0.25" [max]="2" [step]="0.05" (onChange)="onWaves()" />
+        </label>
+
+        <label>
           Time of day
           <p-slider [(ngModel)]="timeOfDay" [min]="0" [max]="1" [step]="0.01" (onChange)="onTime()" />
         </label>
@@ -45,7 +51,30 @@ import type { WeatherId } from '../systems/types';
           />
         </label>
 
-        <p class="hint">Graphics quality and accessibility toggles will expand here.</p>
+        <label>
+          Graphics
+          <p-select
+            [options]="graphicsOptions"
+            [(ngModel)]="graphics"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="onGraphics()"
+          />
+        </label>
+
+        <label class="toggle-row">
+          <span>Reduce motion</span>
+          <p-toggleswitch [(ngModel)]="reduceMotion" (onChange)="onAccess()" />
+        </label>
+
+        <label class="toggle-row">
+          <span>High contrast HUD</span>
+          <p-toggleswitch [(ngModel)]="highContrast" (onChange)="onAccess()" />
+        </label>
+
+        <p class="hint">
+          Steer Q/E · Trim W/S · Throttle Shift · Fire Space · Anchor A · Aim with mouse · Esc pause
+        </p>
       </aside>
     }
   `,
@@ -63,6 +92,8 @@ import type { WeatherId } from '../systems/types';
         background: color-mix(in srgb, #071722 92%, transparent);
         border: 1px solid color-mix(in srgb, #9ec9d8 28%, transparent);
         color: #e8f1f5;
+        max-height: calc(100vh - 6rem);
+        overflow: auto;
       }
       header {
         display: flex;
@@ -78,10 +109,15 @@ import type { WeatherId } from '../systems/types';
         gap: 0.4rem;
         font-size: 0.85rem;
       }
+      .toggle-row {
+        grid-template-columns: 1fr auto;
+        align-items: center;
+      }
       .hint {
         margin: 0;
         opacity: 0.7;
         font-size: 0.8rem;
+        line-height: 1.4;
       }
     `,
   ],
@@ -93,10 +129,14 @@ export class SettingsPanelComponent {
   private readonly engine = inject(GameEngineService);
   private readonly audio = inject(AudioService);
 
-  volume = 0.55;
+  volume = this.engine.snapshot().settings.masterVolume;
   windStrength = this.engine.snapshot().wind.strength;
+  waveScale = this.engine.snapshot().settings.waveScale;
   timeOfDay = this.engine.snapshot().timeOfDay;
   weather: WeatherId = this.engine.snapshot().weather.id;
+  graphics: GraphicsQuality = this.engine.snapshot().settings.graphicsQuality;
+  reduceMotion = this.engine.snapshot().settings.accessibility.reduceMotion;
+  highContrast = this.engine.snapshot().settings.accessibility.highContrast;
 
   readonly weatherOptions: { label: string; value: WeatherId }[] = [
     { label: 'Clear', value: 'clear' },
@@ -108,7 +148,14 @@ export class SettingsPanelComponent {
     { label: 'Tsunami', value: 'tsunami' },
   ];
 
+  readonly graphicsOptions: { label: string; value: GraphicsQuality }[] = [
+    { label: 'Low', value: 'low' },
+    { label: 'Medium', value: 'medium' },
+    { label: 'High', value: 'high' },
+  ];
+
   onVolume(): void {
+    this.engine.patchSettings({ masterVolume: this.volume });
     this.audio.setMasterVolume(this.volume);
   }
 
@@ -117,12 +164,28 @@ export class SettingsPanelComponent {
     this.engine.setWind(dir, this.windStrength);
   }
 
+  onWaves(): void {
+    this.engine.setWaveScale(this.waveScale);
+  }
+
   onTime(): void {
     this.engine.setTimeOfDay(this.timeOfDay);
   }
 
   onWeather(): void {
     this.engine.setWeather(this.weather);
-    this.audio.syncFromWeather();
+  }
+
+  onGraphics(): void {
+    this.engine.setGraphicsQuality(this.graphics);
+  }
+
+  onAccess(): void {
+    this.engine.patchSettings({
+      accessibility: {
+        reduceMotion: this.reduceMotion,
+        highContrast: this.highContrast,
+      },
+    });
   }
 }

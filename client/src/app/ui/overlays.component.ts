@@ -19,8 +19,10 @@ import { SettingsPanelComponent } from './settings-panel.component';
     @if (phase() === 'onboarding') {
       <div class="overlay">
         <h1>Ship Game</h1>
-        <p>Trim sails, mind the wind, and keep the hull afloat.</p>
-        <p class="controls">WASD / arrows · Space fire · A anchor · Esc pause</p>
+        <p>Trim sails, mind the wind, and keep the hull afloat against hostile sails.</p>
+        <p class="controls">
+          Q/E steer · W/S sail trim · Shift throttle · Space fire · A anchor · Mouse aim · Esc pause
+        </p>
         <p-button label="Cast off" (onClick)="start()" />
       </div>
     }
@@ -39,7 +41,10 @@ import { SettingsPanelComponent } from './settings-panel.component';
       <div class="overlay">
         <h2>Victory</h2>
         <p>Hostile sails broken. The horizon is yours.</p>
-        <p-button label="Sail on" (onClick)="resume()" />
+        <div class="row">
+          <p-button label="Sail on" (onClick)="engine.restartVoyage()" />
+          <p-button label="Settings" severity="secondary" (onClick)="settingsOpen.set(true)" />
+        </div>
       </div>
     }
 
@@ -47,7 +52,10 @@ import { SettingsPanelComponent } from './settings-panel.component';
       <div class="overlay">
         <h2>Defeat</h2>
         <p>The sea claims the hull. Refit and try again.</p>
-        <p-button label="Acknowledge" (onClick)="engine.setPhase('onboarding')" />
+        <div class="row">
+          <p-button label="Refit" (onClick)="engine.restartVoyage()" />
+          <p-button label="Menu" severity="secondary" (onClick)="engine.setPhase('onboarding')" />
+        </div>
       </div>
     }
 
@@ -57,6 +65,10 @@ import { SettingsPanelComponent } from './settings-panel.component';
         <p>{{ snap().lastError || 'Unknown error' }}</p>
         <p-button label="Return" (onClick)="engine.setPhase('onboarding')" />
       </div>
+    }
+
+    @if (apiError()) {
+      <div class="toast" role="status">Crew link degraded — {{ apiError() }}</div>
     }
 
     <app-settings-panel [open]="settingsOpen()" (closed)="settingsOpen.set(false)" />
@@ -102,6 +114,19 @@ import { SettingsPanelComponent } from './settings-panel.component';
         justify-content: center;
         flex-wrap: wrap;
       }
+      .toast {
+        position: absolute;
+        left: 50%;
+        top: 1rem;
+        transform: translateX(-50%);
+        z-index: 6;
+        padding: 0.5rem 0.85rem;
+        background: color-mix(in srgb, #3a1510 88%, transparent);
+        border: 1px solid #e0a090;
+        color: #ffe8e0;
+        font-size: 0.85rem;
+        max-width: min(28rem, calc(100vw - 2rem));
+      }
     `,
   ],
 })
@@ -111,6 +136,9 @@ export class OverlaysComponent {
 
   readonly snap = this.engine.snapshot;
   readonly phase = computed(() => this.snap().phase);
+  readonly apiError = computed(() =>
+    this.snap().phase === 'playing' ? this.snap().lastError : undefined,
+  );
   readonly settingsOpen = signal(false);
 
   async start(): Promise<void> {
