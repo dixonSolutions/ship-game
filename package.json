@@ -1,0 +1,28 @@
+{
+  "name": "ship-game",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Immersive browser-based sailing game — Angular client + secure Bedrock/Polly API",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "start": "concurrently -n client,server -c cyan,magenta \"npm run start:client\" \"npm run start:server\"",
+    "start:client": "npm run start -w client",
+    "start:server": "npm run start -w server",
+    "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
+    "lint": "npm run lint -w client && npm run lint -w server && npm run lint -w shared",
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w client",
+    "test": "npm run test -w shared && npm run test -w server && npm run test -w client",
+    "postinstall": "npm run build -w shared"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "typescript": "~5.9.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
