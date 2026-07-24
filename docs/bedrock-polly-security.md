@@ -1,11 +1,12 @@
-# Bedrock / Polly integration & security
+# Bedrock / Polly / ElevenLabs integration & security
 
 ## Hard rules
 
-1. **Never** send AWS credentials to the browser, logs, commits, or client bundles.
-2. Bedrock and Polly run **only** in `server/`.
+1. **Never** send AWS or ElevenLabs credentials to the browser, logs, commits, or client bundles.
+2. Bedrock, Polly, and ElevenLabs run **only** in `server/`.
 3. `.env` is gitignored; ship `.env.example` with empty secrets.
-4. Default `MOCK_AWS=true` for local development without credentials.
+4. Default `MOCK_AWS=true` for local development without AWS credentials.
+5. Prefer `AUDIO_PROVIDER=elevenlabs` when `ELEVENLABS_API_KEY` is set — see `docs/elevenlabs-audio.md`.
 
 ## Request path
 

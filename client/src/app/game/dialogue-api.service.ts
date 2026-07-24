@@ -50,4 +50,11 @@ export class DialogueApiService {
       this.http.post(`${this.apiBase}/api/tts`, { text, voiceId }, { responseType: 'blob' }),
     );
   }
+
+  /** Fetch a constrained sound-bank clip (ElevenLabs via server). */
+  async fetchSound(soundId: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.post(`${this.apiBase}/api/sfx`, { soundId }, { responseType: 'blob' }),
+    );
+  }
 }

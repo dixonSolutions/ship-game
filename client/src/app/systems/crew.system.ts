@@ -1,11 +1,12 @@
 import type { CombatState, CrewMember, CrewRole, WeatherId } from './types';
 
+/** Logical voice keys — server maps these to ElevenLabs / Polly IDs. */
 const VOICE_BY_ROLE: Record<CrewRole, string> = {
-  captain: 'Matthew',
-  helmsman: 'Stephen',
-  gunner: 'Ruth',
-  lookout: 'Joanna',
-  boatswain: 'Brian',
+  captain: 'captain',
+  helmsman: 'helmsman',
+  gunner: 'gunner',
+  lookout: 'lookout',
+  boatswain: 'boatswain',
 };
 
 export interface CrewDialogueCue {

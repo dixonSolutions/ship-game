@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { TtsRequestSchema } from '@ship-game/shared';
 import type { ServerConfig } from '../config.js';
 import { validateBody } from '../middleware/validate.js';
-import { synthesizeSpeech } from '../services/pollyTts.js';
+import { synthesizeSpeech } from '../services/speech.js';
 
 export function createTtsRouter(config: ServerConfig): Router {
   const router = Router();

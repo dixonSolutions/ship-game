@@ -11,8 +11,9 @@ const rootEnv = resolve(repoRoot, '.env');
 const localEnv = resolve(process.cwd(), '.env');
 
 // Load root .env if present — values never leave the server process.
+// override: true so project .env wins over a polluted shell (e.g. unrelated PORT).
 if (existsSync(rootEnv)) {
-  loadEnv({ path: rootEnv });
+  loadEnv({ path: rootEnv, override: true });
 }
 if (existsSync(localEnv) && localEnv !== rootEnv) {
   loadEnv({ path: localEnv, override: false });
@@ -34,6 +35,12 @@ const EnvSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  /** Prefer ElevenLabs when key is present. */
+  AUDIO_PROVIDER: z.enum(['elevenlabs', 'polly', 'mock']).default('elevenlabs'),
+  ELEVENLABS_API_KEY: z.string().optional().default(''),
+  ELEVENLABS_TTS_MODEL: z.string().default('eleven_flash_v2_5'),
+  ELEVENLABS_SFX_MODEL: z.string().default('eleven_text_to_sound_v2'),
+  ELEVENLABS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(40),
 });
 
 export type ServerConfig = z.infer<typeof EnvSchema>;

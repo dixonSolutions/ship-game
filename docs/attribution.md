@@ -9,7 +9,8 @@
 | Three.js | MIT | 3D rendering |
 | Howler.js | MIT | Ambient audio + SFX + voice playback |
 | Express, Zod, Helmet, express-rate-limit | MIT | Secure API |
-| AWS SDK for JavaScript v3 | Apache-2.0 | Bedrock + Polly (server only) |
+| ElevenLabs API | Commercial API | Server-side TTS + generative SFX (key never in browser) |
+| AWS SDK for JavaScript v3 | Apache-2.0 | Bedrock + Polly fallback (server only) |
 | Vitest | MIT | Unit tests |
 
 ## Placeholders (procedural / generated)
@@ -18,10 +19,10 @@
 - **Ocean** — custom vertex/fragment shaders (Gerstner-like displacement + foam).
 - **Sky / atmosphere** — procedural gradient shader with lightning flash uniform.
 - **Rain, spray, wake, shot smoke/impact** — Points / mesh particles generated at runtime.
-- **Ambient & SFX** — generated WAV data-URIs (brown noise / tones) via Howler until credited packs are added.
-- **Crew voices** — Amazon Polly (server-side) when AWS configured; mock audio bytes when `MOCK_AWS=true`.
+- **Ambient & SFX** — ElevenLabs Sound Generation via server allowlisted `soundId`s (cached under `.audio-cache/`); procedural WAV fallback if unavailable.
+- **Crew voices** — ElevenLabs Flash TTS (server-side) mapped per crew role; Polly/mock as fallback.
 
-No commercial textures or paid audio are bundled.
+No commercial textures are bundled. Generated ElevenLabs audio is produced at runtime and not redistributed in the repo.
 
 ## Upstream links
 
@@ -29,3 +30,4 @@ No commercial textures or paid audio are bundled.
 - Optimus docs: https://optimus.openng.org/installation
 - Three.js: https://threejs.org/
 - Howler: https://howlerjs.com/
+- ElevenLabs: https://elevenlabs.io/docs
