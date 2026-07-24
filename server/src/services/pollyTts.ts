@@ -1,4 +1,4 @@
-import { PollyClient, SynthesizeSpeechCommand } from '@aws-sdk/client-polly';
+import { PollyClient, SynthesizeSpeechCommand, type VoiceId } from '@aws-sdk/client-polly';
 import type { TtsRequest } from '@ship-game/shared';
 import type { ServerConfig } from '../config.js';
 
@@ -7,7 +7,24 @@ export interface TtsResult {
   contentType: 'audio/mpeg';
   voiceId: string;
   characters: number;
+  cached?: boolean;
+  provider?: 'polly' | 'mock' | 'elevenlabs';
 }
+
+/** Map logical crew voices onto real Polly VoiceId values. */
+const POLLY_VOICE_MAP: Record<string, VoiceId> = {
+  Matthew: 'Matthew',
+  Joanna: 'Joanna',
+  Brian: 'Brian',
+  Amy: 'Amy',
+  Ruth: 'Ruth',
+  Stephen: 'Stephen',
+  captain: 'Matthew',
+  helmsman: 'Stephen',
+  gunner: 'Ruth',
+  lookout: 'Joanna',
+  boatswain: 'Brian',
+};
 
 /** Minimal silent-ish MPEG frame placeholder when MOCK_AWS is enabled. */
 function mockAudio(text: string, voiceId: string): TtsResult {
@@ -18,6 +35,7 @@ function mockAudio(text: string, voiceId: string): TtsResult {
     contentType: 'audio/mpeg',
     voiceId,
     characters: text.length,
+    provider: 'mock',
   };
 }
 
@@ -25,10 +43,11 @@ export async function synthesizeSpeech(
   config: ServerConfig,
   request: TtsRequest,
 ): Promise<TtsResult> {
-  const voiceId = request.voiceId ?? config.POLLY_VOICE_ID;
+  const logical = request.voiceId ?? config.POLLY_VOICE_ID;
+  const pollyVoice = POLLY_VOICE_MAP[logical] ?? 'Matthew';
 
   if (config.MOCK_AWS || !process.env['AWS_ACCESS_KEY_ID']) {
-    return mockAudio(request.text, voiceId);
+    return mockAudio(request.text, logical);
   }
 
   const client = new PollyClient({ region: config.AWS_REGION });
@@ -36,7 +55,7 @@ export async function synthesizeSpeech(
     new SynthesizeSpeechCommand({
       Text: request.text,
       OutputFormat: 'mp3',
-      VoiceId: voiceId,
+      VoiceId: pollyVoice,
       Engine: config.POLLY_ENGINE,
       TextType: 'text',
     }),
@@ -50,7 +69,8 @@ export async function synthesizeSpeech(
   return {
     audio: Buffer.from(bytes),
     contentType: 'audio/mpeg',
-    voiceId,
+    voiceId: logical,
     characters: request.text.length,
+    provider: 'polly',
   };
 }

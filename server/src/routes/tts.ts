@@ -11,8 +11,8 @@ export function createTtsRouter(config: ServerConfig): Router {
     try {
       const result = await synthesizeSpeech(config, req.body);
       res.setHeader('Content-Type', result.contentType);
-      res.setHeader('X-Voice-Id', result.voiceId);
-      res.setHeader('X-Characters', String(result.characters));
+      res.setHeader('X-Voice-Id', result.voiceId ?? 'unknown');
+      res.setHeader('X-Characters', String(result.characters ?? 0));
       res.send(result.audio);
     } catch (err) {
       next(err);
