@@ -50,6 +50,11 @@ export interface OceanState {
   time: number;
   /** Extra swell pulse used by tsunami events. */
   tsunamiPulse: number;
+  /** Mirrored wind for shader / sampling alignment. */
+  windDirectionRad: number;
+  windStrength: number;
+  /** Long-period swell amount (0–~1.6). */
+  swell: number;
 }
 
 export interface WeatherState {

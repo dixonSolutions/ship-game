@@ -26,6 +26,9 @@ describe('ShipPhysicsSystem', () => {
       chop: 0.2,
       time: 0,
       tsunamiPulse: 0,
+      windDirectionRad: Math.PI / 2,
+      windStrength: 0.9,
+      swell: 0.5,
     };
 
     let state = ship;
@@ -55,6 +58,9 @@ describe('ShipPhysicsSystem', () => {
       chop: 0.2,
       time: 0,
       tsunamiPulse: 0,
+      windDirectionRad: 0,
+      windStrength: 1,
+      swell: 0.4,
     };
 
     state = physics.update(state, controls, wind, ocean, 0.5);
@@ -80,6 +86,9 @@ describe('ShipPhysicsSystem', () => {
       chop: 0.2,
       time: 1,
       tsunamiPulse: 0,
+      windDirectionRad: 0,
+      windStrength: 0.5,
+      swell: 0.5,
     };
     state = physics.update(state, controls, wind, ocean, 0.5);
     expect(state.sinkProgress).toBeGreaterThan(0);
@@ -196,5 +205,32 @@ describe('OceanSystem', () => {
     state = ocean.update(state, 1, 'tsunami', 1);
     expect(state.tsunamiPulse).toBeGreaterThan(0);
     expect(state.waveHeight).toBeGreaterThan(ocean.create().waveHeight);
+  });
+
+  it('grows chop and swell with stronger wind', () => {
+    const ocean = new OceanSystem();
+    const calm = ocean.update(ocean.create(), 0.1, 'clear', 1, {
+      directionRad: 0,
+      strength: 0.15,
+    });
+    const gale = ocean.update(ocean.create(), 0.1, 'clear', 1, {
+      directionRad: 1.2,
+      strength: 0.95,
+    });
+    expect(gale.chop).toBeGreaterThan(calm.chop);
+    expect(gale.swell).toBeGreaterThan(calm.swell);
+    expect(gale.waveHeight).toBeGreaterThan(calm.waveHeight);
+  });
+
+  it('samples uneven heights along the wind fetch', () => {
+    const ocean = new OceanSystem();
+    const state = ocean.update(ocean.create(), 0, 'clear', 1, {
+      directionRad: 0,
+      strength: 0.8,
+    });
+    const a = ocean.sampleHeight({ ...state, time: 3.2 }, 0, 0);
+    const b = ocean.sampleHeight({ ...state, time: 3.2 }, 8, 0);
+    const c = ocean.sampleHeight({ ...state, time: 3.2 }, 0, 8);
+    expect(Math.abs(a - b) + Math.abs(a - c)).toBeGreaterThan(0.05);
   });
 });

@@ -152,7 +152,25 @@ export class GameEngineService {
 
   private tick(dt: number): void {
     const s = this.snapshot();
-    if (s.phase !== 'playing') return;
+
+    // Keep seas alive on menus / pause so the water never looks frozen.
+    if (s.phase !== 'playing') {
+      const weatherTick = this.weatherSys.update(s.weather, s.wind, dt);
+      const ocean = this.oceanSys.update(
+        s.ocean,
+        dt,
+        weatherTick.weather.id,
+        s.settings.waveScale,
+        weatherTick.wind,
+      );
+      this.snapshot.set({
+        ...s,
+        ocean,
+        wind: weatherTick.wind,
+        weather: weatherTick.weather,
+      });
+      return;
+    }
 
     this.voyageGrace = Math.max(0, this.voyageGrace - dt);
     const inGrace = this.voyageGrace > 0;
@@ -163,6 +181,7 @@ export class GameEngineService {
       dt,
       weatherTick.weather.id,
       s.settings.waveScale,
+      weatherTick.wind,
     );
 
     let controls = s.controls;

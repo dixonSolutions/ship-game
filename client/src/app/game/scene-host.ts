@@ -144,31 +144,74 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       transparent: false,
       uniforms: {
         uTime: { value: 0 },
-        uWaveHeight: { value: 0.65 },
-        uChop: { value: 0.28 },
-        uColorDeep: { value: new THREE.Color(0x0d3550) },
-        uColorShallow: { value: new THREE.Color(0x2f7ea0) },
+        uWaveHeight: { value: 0.85 },
+        uChop: { value: 0.42 },
+        uSwell: { value: 0.55 },
+        uWindDir: { value: new THREE.Vector2(0.7, 0.7) },
+        uWindStrength: { value: 0.55 },
+        uWaveLength: { value: 22 },
+        uColorDeep: { value: new THREE.Color(0x0a2f48) },
+        uColorShallow: { value: new THREE.Color(0x2a7194) },
         uSunDir: { value: new THREE.Vector3(0.4, 0.8, 0.2).normalize() },
-        uFoam: { value: 0.2 },
+        uFoam: { value: 0.28 },
       },
       vertexShader: `
         uniform float uTime;
         uniform float uWaveHeight;
         uniform float uChop;
+        uniform float uSwell;
+        uniform vec2 uWindDir;
+        uniform float uWindStrength;
+        uniform float uWaveLength;
         varying vec3 vWorld;
         varying float vWave;
-        float wave(vec2 p) {
-          float t = uTime;
-          float h = sin(p.x * 0.12 + t * 1.2) * 0.55;
-          h += cos(p.y * 0.1 + t * 0.95) * 0.35 * uChop;
-          h += sin((p.x + p.y) * 0.05 + t * 0.5) * 0.25;
-          return h * uWaveHeight;
+        varying float vCrest;
+
+        float hash(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
         }
+
+        float waveHeight(vec2 p) {
+          vec2 dir = normalize(uWindDir);
+          vec2 crossDir = vec2(-dir.y, dir.x);
+          float along = dot(p, dir);
+          float across = dot(p, crossDir);
+          float t = uTime;
+          float w = clamp(uWindStrength, 0.05, 1.0);
+          float H = uWaveHeight;
+          float k1 = 6.28318 / max(8.0, uWaveLength);
+
+          float swell =
+            sin(along * k1 + t * (0.55 + w * 0.45)) * 0.48 * uSwell +
+            sin(along * k1 * 0.55 + across * k1 * 0.2 + t * 0.38) * 0.26 * uSwell +
+            sin(along * k1 * 0.28 + t * 0.22) * 0.14 * uSwell;
+
+          float k2 = k1 * 2.25;
+          float mid =
+            sin(along * k2 * 0.9 + across * k2 * 0.38 + t * 1.4) * 0.26 * uChop +
+            cos(across * k2 + along * k2 * 0.22 + t * 1.15) * 0.2 * uChop +
+            sin(along * k2 * 1.35 - across * k2 * 0.65 + t * 1.8) * 0.12 * uChop;
+
+          float k3 = k1 * 4.8;
+          float phase = hash(floor(p * 0.1)) * 6.28318;
+          float micro =
+            sin(along * k3 + across * k3 * 1.35 + t * 2.6 + phase) * 0.12 * uChop * w +
+            sin(across * k3 * 1.8 - along * k3 * 0.45 + t * 3.1) * 0.09 * uChop +
+            cos(along * k3 * 0.7 + across * k3 * 2.0 + t * 3.6 + phase * 0.5) * 0.06 * uChop;
+
+          float crestWave = pow(max(0.0, sin(along * k1 * 1.15 + t * 0.95)), 2.8) * 0.16 * uChop * w;
+          return (swell + mid + micro + crestWave) * H;
+        }
+
         void main() {
           vec3 pos = position;
-          float h = wave(pos.xz);
+          float h = waveHeight(pos.xz);
           pos.y = h;
           vWave = h;
+          // Crest factor for foam (steep rising faces)
+          float hx = waveHeight(pos.xz + vec2(0.45, 0.0)) - h;
+          float hz = waveHeight(pos.xz + vec2(0.0, 0.45)) - h;
+          vCrest = clamp(length(vec2(hx, hz)) * 1.8 + h * 0.35, 0.0, 1.5);
           vec4 world = modelMatrix * vec4(pos, 1.0);
           vWorld = world.xyz;
           gl_Position = projectionMatrix * viewMatrix * world;
@@ -179,25 +222,35 @@ export class SceneHost implements AfterViewInit, OnDestroy {
         uniform vec3 uColorShallow;
         uniform vec3 uSunDir;
         uniform float uFoam;
+        uniform float uWindStrength;
+        uniform float uChop;
         varying vec3 vWorld;
         varying float vWave;
+        varying float vCrest;
         void main() {
           vec3 dx = dFdx(vWorld);
           vec3 dy = dFdy(vWorld);
           vec3 n = normalize(cross(dx, dy));
-          float fresnel = pow(1.0 - max(dot(n, vec3(0.0, 1.0, 0.0)), 0.0), 2.2);
+          float fresnel = pow(1.0 - max(dot(n, vec3(0.0, 1.0, 0.0)), 0.0), 2.4);
           float ndl = max(dot(n, uSunDir), 0.0);
-          vec3 col = mix(uColorDeep, uColorShallow, clamp(vWave * 0.35 + 0.35, 0.0, 1.0));
-          col += vec3(0.55, 0.7, 0.8) * fresnel * 0.45;
-          col += vec3(1.0, 0.95, 0.8) * pow(ndl, 28.0) * 0.35;
-          col += vec3(0.85, 0.92, 0.95) * smoothstep(0.55, 1.2, vWave) * uFoam;
+          float depthMix = clamp(vWave * 0.28 + 0.4 + uWindStrength * 0.08, 0.0, 1.0);
+          vec3 col = mix(uColorDeep, uColorShallow, depthMix);
+          // Darker troughs, brighter windward faces
+          col *= 0.82 + ndl * 0.28;
+          col += vec3(0.45, 0.65, 0.78) * fresnel * (0.4 + uChop * 0.2);
+          col += vec3(1.0, 0.96, 0.85) * pow(ndl, 42.0) * 0.45;
+          // Whitecaps on steep crests / wind streaks
+          float foamMask = smoothstep(0.5, 1.15, vCrest) * uFoam * (0.45 + uWindStrength * 0.55);
+          foamMask += smoothstep(0.75, 1.8, vWave) * uFoam * 0.28;
+          foamMask += pow(max(0.0, 1.0 - n.y), 2.6) * uChop * 0.12;
+          col = mix(col, vec3(0.88, 0.94, 0.97), clamp(foamMask, 0.0, 0.7));
           gl_FragColor = vec4(col, 1.0);
         }
       `,
     });
 
-    const segments = 128;
-    const oceanGeo = new THREE.PlaneGeometry(500, 500, segments, segments);
+    const segments = 192;
+    const oceanGeo = new THREE.PlaneGeometry(520, 520, segments, segments);
     oceanGeo.rotateX(-Math.PI / 2);
     const ocean = new THREE.Mesh(oceanGeo, oceanMat);
     scene.add(ocean);
@@ -221,12 +274,28 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     scene.add(rain);
 
     const sprayGeo = new THREE.BufferGeometry();
-    const sprayCount = 180;
+    const sprayCount = 420;
     const sprayPos = new Float32Array(sprayCount * 3);
+    const sprayVel = new Float32Array(sprayCount * 3);
+    for (let i = 0; i < sprayCount; i++) {
+      sprayPos[i * 3] = 0;
+      sprayPos[i * 3 + 1] = -10;
+      sprayPos[i * 3 + 2] = 0;
+      sprayVel[i * 3] = 0;
+      sprayVel[i * 3 + 1] = 0;
+      sprayVel[i * 3 + 2] = 0;
+    }
     sprayGeo.setAttribute('position', new THREE.BufferAttribute(sprayPos, 3));
+    sprayGeo.setAttribute('velocity', new THREE.BufferAttribute(sprayVel, 3));
     const spray = new THREE.Points(
       sprayGeo,
-      new THREE.PointsMaterial({ color: 0xdceaf2, size: 0.18, transparent: true, opacity: 0.55 }),
+      new THREE.PointsMaterial({
+        color: 0xe8f3fa,
+        size: 0.22,
+        transparent: true,
+        opacity: 0.65,
+        depthWrite: false,
+      }),
     );
     scene.add(spray);
 
@@ -381,10 +450,16 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     this.oceanMaterial.uniforms['uTime']!.value = reduce ? snap.ocean.time * 0.25 : snap.ocean.time;
     this.oceanMaterial.uniforms['uWaveHeight']!.value = snap.ocean.waveHeight;
     this.oceanMaterial.uniforms['uChop']!.value = snap.ocean.chop;
-    this.oceanMaterial.uniforms['uFoam']!.value = 0.15 + snap.ocean.chop * 0.35;
+    this.oceanMaterial.uniforms['uSwell']!.value = snap.ocean.swell;
+    this.oceanMaterial.uniforms['uWindStrength']!.value = snap.ocean.windStrength;
+    this.oceanMaterial.uniforms['uWaveLength']!.value = snap.ocean.waveLength;
+    const windDir = this.oceanMaterial.uniforms['uWindDir']!.value as THREE.Vector2;
+    windDir.set(Math.sin(snap.ocean.windDirectionRad), Math.cos(snap.ocean.windDirectionRad));
+    this.oceanMaterial.uniforms['uFoam']!.value =
+      0.22 + snap.ocean.chop * 0.4 + snap.ocean.windStrength * 0.25;
 
     this.animateRain(snap, dt);
-    this.animateSpray(snap);
+    this.animateSpray(snap, dt);
     this.animateWake(this.playerVisual, snap.player.speed);
     for (const ai of snap.aiShips) {
       this.animateWake(this.aiVisuals.get(ai.id), ai.ship.speed);
@@ -413,26 +488,60 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     pos.needsUpdate = true;
   }
 
-  private animateSpray(snap: GameSnapshot): void {
+  private animateSpray(snap: GameSnapshot, dt: number): void {
     if (!this.spray || !this.playerVisual) return;
     const pos = this.spray.geometry.attributes['position'] as THREE.BufferAttribute;
+    const vel = this.spray.geometry.attributes['velocity'] as THREE.BufferAttribute;
     const base = snap.player.position;
     const heading = snap.player.heading;
+    const fwdX = Math.sin(heading);
+    const fwdZ = Math.cos(heading);
+    const rightX = Math.cos(heading);
+    const rightZ = -Math.sin(heading);
+    const windX = Math.sin(snap.ocean.windDirectionRad);
+    const windZ = Math.cos(snap.ocean.windDirectionRad);
+    const energy =
+      snap.player.speed * 0.12 +
+      snap.ocean.chop * 0.55 +
+      snap.ocean.windStrength * 0.35 +
+      Math.abs(snap.player.heel) * 0.8;
+
     for (let i = 0; i < pos.count; i++) {
-      const side = i % 2 === 0 ? 1 : -1;
-      const along = (i / pos.count) * 4;
-      pos.setXYZ(
-        i,
-        base.x + Math.sin(heading) * (-2 - along) + Math.cos(heading) * side * (0.8 + Math.random()),
-        base.y + 0.3 + Math.random() * (0.4 + snap.player.speed * 0.08),
-        base.z + Math.cos(heading) * (-2 - along) - Math.sin(heading) * side * (0.8 + Math.random()),
-      );
+      let x = pos.getX(i);
+      let y = pos.getY(i);
+      let z = pos.getZ(i);
+      let vx = vel.getX(i);
+      let vy = vel.getY(i);
+      let vz = vel.getZ(i);
+
+      // Respawn droplets near bow / beam when dead or below water
+      if (y < base.y - 0.2 || Math.hypot(x - base.x, z - base.z) > 14) {
+        const side = Math.random() > 0.5 ? 1 : -1;
+        const along = -1.2 - Math.random() * 3.5;
+        const beam = side * (0.6 + Math.random() * (1.1 + energy));
+        x = base.x + fwdX * along + rightX * beam;
+        y = base.y + 0.15 + Math.random() * 0.35;
+        z = base.z + fwdZ * along + rightZ * beam;
+        const kick = 1.2 + energy * 2.2 + Math.random() * 1.5;
+        vx = -fwdX * (0.8 + Math.random()) * kick * 0.35 + windX * snap.ocean.windStrength * 1.8 + rightX * side * kick;
+        vy = 1.5 + Math.random() * (2.2 + energy * 2.5);
+        vz = -fwdZ * (0.8 + Math.random()) * kick * 0.35 + windZ * snap.ocean.windStrength * 1.8 + rightZ * side * kick;
+      }
+
+      vx += windX * snap.ocean.windStrength * dt * 2.5;
+      vz += windZ * snap.ocean.windStrength * dt * 2.5;
+      vy -= 9.5 * dt;
+      x += vx * dt;
+      y += vy * dt;
+      z += vz * dt;
+
+      pos.setXYZ(i, x, y, z);
+      vel.setXYZ(i, vx, vy, vz);
     }
     pos.needsUpdate = true;
-    (this.spray.material as THREE.PointsMaterial).opacity = Math.min(
-      0.7,
-      0.15 + snap.player.speed * 0.06 + snap.ocean.chop * 0.15,
-    );
+    vel.needsUpdate = true;
+    (this.spray.material as THREE.PointsMaterial).opacity = Math.min(0.85, 0.12 + energy * 0.35);
+    (this.spray.material as THREE.PointsMaterial).size = 0.14 + Math.min(0.2, energy * 0.08);
   }
 
   private animateWake(visual: ShipVisual | undefined, speed: number): void {
@@ -493,8 +602,9 @@ export class SceneHost implements AfterViewInit, OnDestroy {
 
     if (this.scene.fog instanceof THREE.FogExp2) {
       const fogBoost = snap.settings.accessibility.highContrast ? 0.6 : 1;
-      this.scene.fog.density = (0.006 + (1 - snap.weather.visibility) * 0.045) * fogBoost;
-      this.scene.fog.color.set(night ? 0x1a2738 : 0x6f8ea3);
+      // Keep density modest so wind chop and foam still read in storms/fog.
+      this.scene.fog.density = (0.004 + (1 - snap.weather.visibility) * 0.022) * fogBoost;
+      this.scene.fog.color.set(night ? 0x1a2738 : 0x4d6f82);
     }
 
     // Lightning bolt
