@@ -9,15 +9,19 @@ import {
 } from '@angular/core';
 import * as THREE from 'three';
 import { GameEngineService } from './game-engine.service';
+import { AI_HULL_RADIUS, PLAYER_HULL_RADIUS } from '../systems/collision.system';
 import type { AiShipState, CrewMember, GameSnapshot, ShotVisual } from '../systems/types';
 
 interface ShipVisual {
   root: THREE.Group;
+  hull: THREE.Mesh;
   sail: THREE.Mesh;
   rudder: THREE.Mesh;
   wake: THREE.Points;
   crew: THREE.Group[];
   damageLight: THREE.PointLight;
+  debugRing: THREE.Line;
+  accentMeshes: THREE.Mesh[];
 }
 
 /** Full-bleed Three.js ocean scene with procedural ships, weather, and FX. */
@@ -61,9 +65,14 @@ export class SceneHost implements AfterViewInit, OnDestroy {
   private lightningBolt?: THREE.Mesh;
   private shotMeshes = new Map<string, THREE.Object3D>();
   private aimLine?: THREE.Line;
+  private debugPaths = new Map<string, THREE.Line>();
+  private woodMap?: THREE.Texture;
+  private sailMap?: THREE.Texture;
+  private foamMap?: THREE.Texture;
   private resizeObserver?: ResizeObserver;
   private raf = 0;
   private clock = new THREE.Clock();
+  private readonly texLoader = new THREE.TextureLoader();
 
   constructor() {
     effect(() => {
@@ -92,6 +101,8 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
+
+    this.loadTextures();
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x6f8ea3, 0.01);
@@ -255,7 +266,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     const ocean = new THREE.Mesh(oceanGeo, oceanMat);
     scene.add(ocean);
 
-    const playerVisual = this.createShipVisual(0xc4a574, true);
+    const playerVisual = this.createShipVisual(0xc4a574, true, 0xd4b45a);
     scene.add(playerVisual.root);
 
     const rainGeo = new THREE.BufferGeometry();
@@ -343,69 +354,145 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     renderLoop();
   }
 
-  private createShipVisual(hullColor: number, withCrew: boolean): ShipVisual {
-    const root = new THREE.Group();
+  private loadTextures(): void {
+    const prep = (tex: THREE.Texture) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.needsUpdate = true;
+      return tex;
+    };
+    this.woodMap = prep(this.texLoader.load('/assets/wood-hull.svg'));
+    this.woodMap.repeat.set(2.2, 1.4);
+    this.sailMap = prep(this.texLoader.load('/assets/sail-canvas.svg'));
+    this.sailMap.repeat.set(1.4, 1.8);
+    this.foamMap = prep(this.texLoader.load('/assets/water-foam.svg'));
+  }
 
-    const hull = new THREE.Mesh(
-      new THREE.BoxGeometry(2.4, 0.9, 6.2),
-      new THREE.MeshStandardMaterial({ color: hullColor, roughness: 0.72, metalness: 0.05 }),
+  private createShipVisual(hullColor: number, withCrew: boolean, accent = 0xc9a227): ShipVisual {
+    const root = new THREE.Group();
+    const woodMat = new THREE.MeshStandardMaterial({
+      color: hullColor,
+      map: this.woodMap ?? null,
+      roughness: 0.78,
+      metalness: 0.04,
+    });
+    const darkWood = new THREE.MeshStandardMaterial({
+      color: 0x4a3424,
+      map: this.woodMap ?? null,
+      roughness: 0.82,
+    });
+
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(2.55, 1.05, 6.4), woodMat);
+    hull.position.y = 0.42;
+    hull.castShadow = true;
+
+    const bilge = new THREE.Mesh(
+      new THREE.BoxGeometry(2.2, 0.45, 5.6),
+      new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.9 }),
     );
-    hull.position.y = 0.45;
-    hull.scale.set(1, 1, 1);
-    // Taper bow slightly via a second wedge
-    const bow = new THREE.Mesh(
-      new THREE.ConeGeometry(1.1, 2.2, 4),
-      new THREE.MeshStandardMaterial({ color: hullColor, roughness: 0.72 }),
-    );
+    bilge.position.y = 0.05;
+
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(1.15, 2.4, 5), woodMat.clone());
     bow.rotation.x = Math.PI / 2;
-    bow.position.set(0, 0.45, 3.4);
+    bow.position.set(0, 0.5, 3.55);
+
+    const stern = new THREE.Mesh(
+      new THREE.BoxGeometry(2.35, 1.15, 0.55),
+      woodMat.clone(),
+    );
+    stern.position.set(0, 0.7, -3.15);
 
     const deck = new THREE.Mesh(
-      new THREE.BoxGeometry(2.1, 0.12, 5.2),
-      new THREE.MeshStandardMaterial({ color: 0x8b6a45, roughness: 0.85 }),
+      new THREE.BoxGeometry(2.2, 0.14, 5.4),
+      new THREE.MeshStandardMaterial({
+        color: 0x9a7348,
+        map: this.woodMap ?? null,
+        roughness: 0.88,
+      }),
     );
-    deck.position.y = 0.95;
+    deck.position.y = 1.0;
+
+    const gunwaleL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 5.0), darkWood);
+    gunwaleL.position.set(-1.2, 1.15, 0);
+    const gunwaleR = gunwaleL.clone();
+    gunwaleR.position.x = 1.2;
 
     const mast = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.09, 0.12, 5.2, 8),
-      new THREE.MeshStandardMaterial({ color: 0x5c4030, roughness: 0.8 }),
+      new THREE.CylinderGeometry(0.1, 0.14, 5.6, 10),
+      darkWood,
     );
-    mast.position.y = 3.1;
+    mast.position.y = 3.35;
+
+    const yard = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.06, 3.4, 8),
+      darkWood,
+    );
+    yard.rotation.z = Math.PI / 2;
+    yard.position.set(0, 4.4, 0.05);
 
     const sail = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.8, 3.6, 8, 8),
+      new THREE.PlaneGeometry(3.0, 3.8, 10, 10),
       new THREE.MeshStandardMaterial({
         color: 0xf3efe4,
+        map: this.sailMap ?? null,
         side: THREE.DoubleSide,
-        roughness: 0.92,
+        roughness: 0.94,
         metalness: 0,
       }),
     );
-    sail.position.set(0.85, 2.7, 0.1);
+    sail.position.set(0.15, 2.85, 0.2);
 
     const rudder = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.7, 0.55),
-      new THREE.MeshStandardMaterial({ color: 0x4a3424, roughness: 0.75 }),
+      new THREE.BoxGeometry(0.14, 0.85, 0.65),
+      darkWood,
     );
-    rudder.position.set(0, 0.15, -3.2);
+    rudder.position.set(0, 0.2, -3.45);
 
-    const cannonL = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.12, 1.1, 8),
-      new THREE.MeshStandardMaterial({ color: 0x2c2c2c, metalness: 0.6, roughness: 0.35 }),
-    );
-    cannonL.rotation.z = Math.PI / 2;
-    cannonL.position.set(-1.2, 0.9, 0.3);
-    const cannonR = cannonL.clone();
-    cannonR.position.x = 1.2;
+    const iron = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.7, roughness: 0.32 });
+    const makeCannon = (x: number, z: number) => {
+      const g = new THREE.Group();
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 1.25, 10), iron);
+      barrel.rotation.z = Math.PI / 2;
+      const carriage = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.55), darkWood);
+      carriage.position.set(0, -0.2, 0);
+      g.add(barrel, carriage);
+      g.position.set(x, 0.95, z);
+      root.add(g);
+      return barrel;
+    };
+    makeCannon(-1.25, 0.8);
+    makeCannon(-1.25, -0.6);
+    makeCannon(1.25, 0.8);
+    makeCannon(1.25, -0.6);
 
-    root.add(hull, bow, deck, mast, sail, rudder, cannonL, cannonR);
+    const accentMat = new THREE.MeshStandardMaterial({
+      color: accent,
+      roughness: 0.45,
+      metalness: 0.35,
+      emissive: new THREE.Color(accent).multiplyScalar(0.15),
+    });
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.12, 5.8), accentMat);
+    stripe.position.y = 0.78;
+    const figurehead = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), accentMat);
+    figurehead.position.set(0, 0.85, 4.35);
+    const accentMeshes = [stripe, figurehead];
+
+    root.add(hull, bilge, bow, stern, deck, gunwaleL, gunwaleR, mast, yard, sail, rudder, stripe, figurehead);
 
     const wakeGeo = new THREE.BufferGeometry();
     const wakeCount = 40;
     wakeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(wakeCount * 3), 3));
     const wake = new THREE.Points(
       wakeGeo,
-      new THREE.PointsMaterial({ color: 0xd9e8f0, size: 0.22, transparent: true, opacity: 0.5 }),
+      new THREE.PointsMaterial({
+        color: 0xd9e8f0,
+        map: this.foamMap ?? null,
+        size: 0.28,
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false,
+      }),
     );
     root.add(wake);
 
@@ -413,9 +500,21 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     damageLight.position.set(0, 1.2, 0);
     root.add(damageLight);
 
+    const ringPts: THREE.Vector3[] = [];
+    const radius = withCrew ? PLAYER_HULL_RADIUS : AI_HULL_RADIUS;
+    for (let i = 0; i <= 48; i++) {
+      const a = (i / 48) * Math.PI * 2;
+      ringPts.push(new THREE.Vector3(Math.sin(a) * radius, 0.08, Math.cos(a) * radius));
+    }
+    const debugRing = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(ringPts),
+      new THREE.LineBasicMaterial({ color: 0x5cff9a, transparent: true, opacity: 0.85 }),
+    );
+    debugRing.visible = false;
+    root.add(debugRing);
+
     const crew: THREE.Group[] = [];
     if (withCrew) {
-      // Placeholders — positions updated from snapshot crew offsets.
       for (let i = 0; i < 5; i++) {
         const figure = this.createCrewFigure();
         root.add(figure);
@@ -423,7 +522,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       }
     }
 
-    return { root, sail, rudder, wake, crew, damageLight };
+    return { root, hull, sail, rudder, wake, crew, damageLight, debugRing, accentMeshes };
   }
 
   private createCrewFigure(): THREE.Group {
@@ -464,7 +563,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     for (const ai of snap.aiShips) {
       this.animateWake(this.aiVisuals.get(ai.id), ai.ship.speed);
     }
-    this.syncShots(snap.shotVisuals);
+    this.syncShots(snap.shotVisuals, snap.settings.debugPhysics);
   }
 
   private animateRain(snap: GameSnapshot, dt: number): void {
@@ -566,7 +665,13 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       this.renderer.setPixelRatio(ratio);
     }
 
-    this.applyShipVisual(this.playerVisual, snap.player, snap.controls.sailTrim, snap.controls.rudder);
+    this.applyShipVisual(
+      this.playerVisual,
+      snap.player,
+      snap.controls.sailTrim,
+      snap.controls.rudder,
+      snap.settings.debugPhysics,
+    );
     this.syncCrew(this.playerVisual, snap.crew, snap.ocean.time);
 
     // Camera chase
@@ -645,11 +750,11 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       aliveIds.add(ai.id);
       let visual = this.aiVisuals.get(ai.id);
       if (!visual) {
-        visual = this.createShipVisual(this.factionColor(ai), false);
+        visual = this.createShipVisual(this.factionHull(ai), false, this.factionAccent(ai));
         this.scene.add(visual.root);
         this.aiVisuals.set(ai.id, visual);
       }
-      this.applyShipVisual(visual, ai.ship, 0.75, 0);
+      this.applyShipVisual(visual, ai.ship, 0.75, 0, snap.settings.debugPhysics);
       visual.root.visible = ai.ship.sinkProgress < 0.98;
     }
     for (const [id, visual] of this.aiVisuals) {
@@ -665,6 +770,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     ship: GameSnapshot['player'],
     sailTrim: number,
     rudder: number,
+    debugPhysics = false,
   ): void {
     visual.root.position.set(ship.position.x, ship.position.y, ship.position.z);
     visual.root.rotation.y = ship.heading;
@@ -674,9 +780,9 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     visual.sail.rotation.y = Math.sin(sailTrim * Math.PI) * 0.25;
     visual.rudder.rotation.y = rudder * 0.55;
     visual.damageLight.intensity = (1 - ship.hullIntegrity) * 2.2;
-    const hullMat = (visual.root.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
-    hullMat.color.offsetHSL(0, 0, 0); // keep base
+    const hullMat = visual.hull.material as THREE.MeshStandardMaterial;
     hullMat.emissive = new THREE.Color(0x331108).multiplyScalar((1 - ship.hullIntegrity) * 0.45);
+    visual.debugRing.visible = debugPhysics;
   }
 
   private syncCrew(visual: ShipVisual, crew: CrewMember[], time: number): void {
@@ -692,20 +798,49 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     });
   }
 
-  private factionColor(ai: AiShipState): number {
-    if (ai.faction === 'pirate') return 0x6b2d2d;
-    if (ai.faction === 'navy') return 0x2f4f7a;
-    return 0x8a9aaa;
+  private factionHull(ai: AiShipState): number {
+    if (ai.faction === 'pirate') return 0x5a2a1c;
+    if (ai.faction === 'navy') return 0x3a4a5c;
+    return 0x7a6a52;
   }
 
-  private syncShots(shots: ShotVisual[]): void {
+  private factionAccent(ai: AiShipState): number {
+    if (ai.faction === 'pirate') return 0xb33a3a;
+    if (ai.faction === 'navy') return 0x3d7ad6;
+    return 0xc9a227;
+  }
+
+  private syncShots(shots: ShotVisual[], debugPhysics: boolean): void {
     if (!this.scene) return;
     const alive = new Set(shots.map((s) => s.id));
 
     for (const shot of shots) {
       let obj = this.shotMeshes.get(shot.id);
       if (!obj) {
-        if (shot.kind === 'cannon') {
+        if (shot.kind === 'ball') {
+          obj = new THREE.Mesh(
+            new THREE.SphereGeometry(0.28, 10, 10),
+            new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.85, roughness: 0.25 }),
+          );
+          obj.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
+        } else if (shot.kind === 'smoke') {
+          obj = new THREE.Mesh(
+            new THREE.SphereGeometry(0.4, 8, 8),
+            new THREE.MeshBasicMaterial({ color: 0xbbbbbb, transparent: true, opacity: 0.45 }),
+          );
+          obj.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
+        } else if (shot.kind === 'splash') {
+          obj = new THREE.Mesh(
+            new THREE.SphereGeometry(0.45, 8, 8),
+            new THREE.MeshBasicMaterial({
+              color: 0xd7eef8,
+              transparent: true,
+              opacity: 0.7,
+              map: this.foamMap ?? null,
+            }),
+          );
+          obj.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
+        } else if (shot.kind === 'cannon') {
           const geo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(shot.origin.x, shot.origin.y, shot.origin.z),
             new THREE.Vector3(shot.target.x, shot.target.y, shot.target.z),
@@ -714,12 +849,6 @@ export class SceneHost implements AfterViewInit, OnDestroy {
             geo,
             new THREE.LineBasicMaterial({ color: 0xffe0a0, transparent: true, opacity: 0.9 }),
           );
-        } else if (shot.kind === 'smoke') {
-          obj = new THREE.Mesh(
-            new THREE.SphereGeometry(0.35, 8, 8),
-            new THREE.MeshBasicMaterial({ color: 0xbbbbbb, transparent: true, opacity: 0.45 }),
-          );
-          obj.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
         } else {
           obj = new THREE.Mesh(
             new THREE.SphereGeometry(0.55, 8, 8),
@@ -732,12 +861,45 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       }
 
       const life = 1 - shot.age / shot.lifetime;
-      if (shot.kind === 'smoke' || shot.kind === 'impact') {
+      if (shot.kind === 'ball') {
+        obj.position.set(shot.target.x, shot.target.y, shot.target.z);
+        if (debugPhysics) {
+          let trail = this.debugPaths.get(shot.id);
+          if (!trail) {
+            trail = new THREE.Line(
+              new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(shot.origin.x, shot.origin.y, shot.origin.z),
+                new THREE.Vector3(shot.target.x, shot.target.y, shot.target.z),
+              ]),
+              new THREE.LineBasicMaterial({ color: 0xffd36a, transparent: true, opacity: 0.55 }),
+            );
+            this.scene.add(trail);
+            this.debugPaths.set(shot.id, trail);
+          } else {
+            const pos = trail.geometry.attributes['position'] as THREE.BufferAttribute;
+            pos.setXYZ(1, shot.target.x, shot.target.y, shot.target.z);
+            pos.needsUpdate = true;
+          }
+        }
+      } else if (shot.kind === 'smoke' || shot.kind === 'impact' || shot.kind === 'splash') {
         const mesh = obj as THREE.Mesh;
-        const mat = mesh.material as THREE.MeshBasicMaterial;
-        mat.opacity = life * (shot.kind === 'impact' ? 0.85 : 0.4);
-        const s = shot.kind === 'impact' ? 1 + shot.age * 2.5 : 1 + shot.age * 1.4;
+        const mat = mesh.material as THREE.MeshBasicMaterial | THREE.MeshStandardMaterial;
+        if ('opacity' in mat) {
+          mat.transparent = true;
+          mat.opacity =
+            life *
+            (shot.kind === 'impact' ? 0.85 : shot.kind === 'splash' ? 0.65 : 0.4);
+        }
+        const s =
+          shot.kind === 'impact'
+            ? 1 + shot.age * 2.5
+            : shot.kind === 'splash'
+              ? 1 + shot.age * 3.2
+              : 1 + shot.age * 1.4;
         mesh.scale.setScalar(s);
+        if (shot.kind === 'splash') {
+          mesh.position.y = shot.origin.y + shot.age * 0.8;
+        }
       } else {
         const line = obj as THREE.Line;
         (line.material as THREE.LineBasicMaterial).opacity = life;
@@ -748,6 +910,18 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       if (!alive.has(id)) {
         this.scene.remove(obj);
         this.shotMeshes.delete(id);
+        const trail = this.debugPaths.get(id);
+        if (trail) {
+          this.scene.remove(trail);
+          this.debugPaths.delete(id);
+        }
+      }
+    }
+
+    if (!debugPhysics) {
+      for (const [id, trail] of this.debugPaths) {
+        this.scene.remove(trail);
+        this.debugPaths.delete(id);
       }
     }
   }

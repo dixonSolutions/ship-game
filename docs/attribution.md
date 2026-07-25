@@ -18,9 +18,21 @@
 - **Ships, sails, rudders, cannons, crew figures** — procedural Three.js geometry (no third-party meshes).
 - **Ocean** — custom vertex/fragment shaders (Gerstner-like displacement + foam).
 - **Sky / atmosphere** — procedural gradient shader with lightning flash uniform.
-- **Rain, spray, wake, shot smoke/impact** — Points / mesh particles generated at runtime.
+- **Rain, spray, wake, shot smoke/impact/splash, cannonballs** — Points / mesh particles generated at runtime.
 - **Ambient & SFX** — ElevenLabs Sound Generation via server allowlisted `soundId`s (cached under `.audio-cache/`); procedural WAV fallback if unavailable.
 - **Crew voices** — ElevenLabs Flash TTS (server-side) mapped per crew role; Polly/mock as fallback.
+
+## Original SVG textures (CC0 / public domain by author)
+
+Original designs authored for this project (no third-party downloads):
+
+| File | Description |
+| --- | --- |
+| `client/public/assets/wood-hull.svg` | Plank + grain hull wood pattern |
+| `client/public/assets/sail-canvas.svg` | Canvas weave sail texture |
+| `client/public/assets/water-foam.svg` | Foam accent for wake / splash |
+
+Released into the public domain (CC0) for use in this game.
 
 No commercial textures are bundled. Generated ElevenLabs audio is produced at runtime and not redistributed in the repo.
 

@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { AiSystem } from '../systems/ai.system';
+import { CollisionSystem } from '../systems/collision.system';
 import { CombatSystem } from '../systems/combat.system';
 import { CrewSystem } from '../systems/crew.system';
 import { OceanSystem } from '../systems/ocean.system';
@@ -10,6 +11,7 @@ import type {
   GameSettings,
   GameSnapshot,
   GraphicsQuality,
+  Projectile,
   ShipControls,
   WeatherId,
 } from '../systems/types';
@@ -34,6 +36,7 @@ const DEFAULT_SETTINGS: GameSettings = {
     reduceMotion: false,
     highContrast: false,
   },
+  debugPhysics: false,
 };
 
 @Injectable({ providedIn: 'root' })
@@ -45,6 +48,7 @@ export class GameEngineService {
   private readonly oceanSys = new OceanSystem();
   private readonly physicsSys = new ShipPhysicsSystem();
   private readonly combatSys = new CombatSystem();
+  private readonly collisionSys = new CollisionSystem();
   private readonly crewSys = new CrewSystem();
   private readonly aiSys = new AiSystem();
 
@@ -150,6 +154,11 @@ export class GameEngineService {
     this.patchSettings({ waveScale });
   }
 
+  toggleDebugPhysics(): void {
+    const s = this.snapshot();
+    this.patchSettings({ debugPhysics: !s.settings.debugPhysics });
+  }
+
   private tick(dt: number): void {
     const s = this.snapshot();
 
@@ -190,41 +199,70 @@ export class GameEngineService {
 
     let player = this.physicsSys.update(s.player, controls, weatherTick.wind, ocean, dt);
     let aiShips = this.aiSys.update(s.aiShips, player, weatherTick.wind, ocean, dt);
-    let shotVisuals = this.combatSys.ageVisuals(s.shotVisuals, dt);
+
+    // Hull collisions after movement (no hull damage during voyage grace)
+    const collided = this.collisionSys.resolveShips(player, aiShips, {
+      damageScale: inGrace ? 0 : 1,
+    });
+    player = collided.player;
+    aiShips = collided.aiShips;
+    if (!inGrace && collided.events.some((e) => e.impulse > 0.8)) {
+      this.audio.playImpact(0.35);
+    }
+
+    let projectiles: Projectile[] = [...s.projectiles];
+    let shotVisuals = [...s.shotVisuals];
     let lastHitMarker = s.lastHitMarker
       ? { ...s.lastHitMarker, age: s.lastHitMarker.age + dt }
       : undefined;
     if (lastHitMarker && lastHitMarker.age > 1.6) lastHitMarker = undefined;
 
     if (combatTick.canFire) {
-      const shot = this.combatSys.resolvePlayerShot(player, controls, aiShips);
-      shotVisuals = [...shotVisuals, ...this.combatSys.createShotVisuals(shot)];
+      const fire = this.combatSys.buildPlayerFire(player, controls);
+      const spawned = this.combatSys.spawnProjectile(fire);
+      projectiles = [...projectiles, spawned.projectile];
+      shotVisuals = [...shotVisuals, ...spawned.visuals];
+      player = this.combatSys.applyRecoil(player, fire.yaw, 0.65);
       this.audio.playCannon(0.9);
-      if (shot.hit && shot.targetId) {
-        aiShips = aiShips.map((ai) =>
-          ai.id === shot.targetId
-            ? { ...ai, ship: this.combatSys.applyDamage(ai.ship, shot.damage) }
-            : ai,
-        );
-        lastHitMarker = { targetId: shot.targetId, damage: shot.damage, age: 0 };
-        this.audio.playImpact(0.7);
-      }
     }
 
-    // AI return fire (disabled during voyage grace so players can learn the ropes)
+    // AI return fire (disabled during voyage grace)
     if (!inGrace) {
       for (let i = 0; i < aiShips.length; i++) {
         const ai = aiShips[i]!;
-        const shot = this.combatSys.resolveAiShot(ai, player);
-        if (!shot) continue;
-        aiShips[i] = this.aiSys.markFired(ai);
-        shotVisuals = [...shotVisuals, ...this.combatSys.createShotVisuals(shot)];
-        this.audio.playCannon(0.55);
-        if (shot.hit) {
-          player = this.combatSys.applyDamage(player, shot.damage);
-          this.audio.playImpact(0.85);
-        }
+        const fire = this.combatSys.buildAiFire(ai, player);
+        if (!fire) continue;
+        const marked = this.aiSys.markFired(ai);
+        const spawned = this.combatSys.spawnProjectile(fire);
+        projectiles = [...projectiles, spawned.projectile];
+        shotVisuals = [...shotVisuals, ...spawned.visuals];
+        aiShips[i] = {
+          ...marked,
+          ship: this.combatSys.applyRecoil(marked.ship, fire.yaw, 0.4),
+        };
+        this.audio.playCannon(0.5);
       }
+    }
+
+    const ballTick = this.combatSys.tickProjectiles(
+      projectiles,
+      player,
+      aiShips,
+      (x, z) => this.oceanSys.sampleHeight(ocean, x, z),
+      dt,
+      shotVisuals,
+    );
+    projectiles = ballTick.projectiles;
+    shotVisuals = ballTick.visuals;
+    player = ballTick.player;
+    aiShips = ballTick.aiShips;
+
+    for (const hit of ballTick.hits) {
+      lastHitMarker = { targetId: hit.targetId, damage: hit.damage, age: 0 };
+      this.audio.playImpact(0.8);
+    }
+    if (ballTick.waterSplashes.length) {
+      this.audio.playImpact(0.25);
     }
 
     const crew = this.crewSys.tickMorale(s.crew, player.hullIntegrity, dt);
@@ -265,6 +303,7 @@ export class GameEngineService {
       crew,
       combatState,
       shotVisuals,
+      projectiles,
       lastHitMarker,
       reloadRemaining: this.combatSys.getReloadRemaining(),
       timeOfDay: s.settings.accessibility.reduceMotion
@@ -339,15 +378,20 @@ export class GameEngineService {
       controls: { ...DEFAULT_CONTROLS },
       crew: this.crewSys.createDefaultCrew(),
       aiShips: [
-        this.aiSys.createPatrol('merchant', 68, -42, false),
-        this.aiSys.createPatrol('navy', -72, -55, false),
-        this.aiSys.createPatrol('pirate', -58, 78, true),
-        this.aiSys.createPatrol('pirate', 70, 85, true),
+        this.aiSys.createPatrol('merchant', 55, -36, false),
+        this.aiSys.createPatrol('navy', -48, -40, false),
+        this.aiSys.createPatrol('pirate', -28, 48, true),
+        this.aiSys.createPatrol('pirate', 34, 52, true),
       ],
       combatState: 'peaceful',
       reloadRemaining: 0,
       shotVisuals: [],
-      settings: { ...DEFAULT_SETTINGS, accessibility: { ...DEFAULT_SETTINGS.accessibility } },
+      projectiles: [],
+      settings: {
+        ...DEFAULT_SETTINGS,
+        accessibility: { ...DEFAULT_SETTINGS.accessibility },
+        debugPhysics: false,
+      },
     };
   }
 }

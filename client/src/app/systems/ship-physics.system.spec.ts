@@ -4,7 +4,7 @@ import { WindSystem } from './wind.system';
 import { WeatherSystem } from './weather.system';
 import { CombatSystem } from './combat.system';
 import { OceanSystem } from './ocean.system';
-import type { OceanState, ShipControls, WindState } from './types';
+import type { AiShipState, OceanState, ShipControls, WindState } from './types';
 
 describe('ShipPhysicsSystem', () => {
   it('increases speed with sail trim and wind', () => {
@@ -151,7 +151,7 @@ describe('CombatSystem', () => {
     expect(damaged.sailIntegrity).toBeLessThan(1);
   });
 
-  it('hits targets inside the aim cone', () => {
+  it('spawns ballistic projectiles that can hit AI hulls', () => {
     const combat = new CombatSystem();
     const player = {
       position: { x: 0, y: 0, z: 0 },
@@ -169,20 +169,20 @@ describe('CombatSystem', () => {
       throttle: 0,
       anchorDeployed: false,
       cannonAimYaw: 0,
-      cannonAimPitch: 0.1,
+      cannonAimPitch: 0.08,
       fireCannon: true,
     };
-    const aiShips = [
+    const aiShips: AiShipState[] = [
       {
         id: 'pirate-1',
-        faction: 'pirate' as const,
+        faction: 'pirate',
         hostile: true,
         reloadTimer: 0,
-        broadsideSide: 1 as const,
+        broadsideSide: 1,
         ship: {
-          position: { x: 0, y: 0, z: 20 },
+          position: { x: 0, y: 0, z: 18 },
           heading: Math.PI,
-          speed: 2,
+          speed: 0,
           heel: 0,
           pitch: 0,
           hullIntegrity: 1,
@@ -191,10 +191,52 @@ describe('CombatSystem', () => {
         },
       },
     ];
-    const shot = combat.resolvePlayerShot(player, controls, aiShips);
-    expect(shot.hit).toBe(true);
-    expect(shot.targetId).toBe('pirate-1');
-    expect(shot.damage).toBeGreaterThan(0);
+    const fire = combat.buildPlayerFire(player, controls);
+    const spawned = combat.spawnProjectile({
+      ...fire,
+      pitch: 0.05,
+      muzzleSpeed: 48,
+    });
+    expect(spawned.projectile.alive).toBe(true);
+    expect(spawned.visuals.some((v) => v.kind === 'ball')).toBe(true);
+
+    let balls = [spawned.projectile];
+    let visuals = spawned.visuals;
+    let ships: AiShipState[] = aiShips;
+    let hits: Array<{ targetId: string }> = [];
+    for (let i = 0; i < 120 && hits.length === 0; i++) {
+      const tick = combat.tickProjectiles(
+        balls,
+        player,
+        ships,
+        () => -2,
+        1 / 30,
+        visuals,
+      );
+      balls = tick.projectiles;
+      visuals = tick.visuals;
+      ships = tick.aiShips;
+      hits = tick.hits;
+    }
+    expect(hits.some((h) => h.targetId === 'pirate-1')).toBe(true);
+    expect(ships[0]!.ship.hullIntegrity).toBeLessThan(1);
+  });
+
+  it('applies muzzle recoil to the firer', () => {
+    const combat = new CombatSystem();
+    const ship = {
+      position: { x: 0, y: 0, z: 0 },
+      heading: 0,
+      speed: 4,
+      heel: 0,
+      pitch: 0,
+      hullIntegrity: 1,
+      sailIntegrity: 1,
+      sinkProgress: 0,
+    };
+    const recoiled = combat.applyRecoil(ship, 0, 0.8);
+    expect(recoiled.speed).toBeLessThan(ship.speed);
+    expect(recoiled.position.z).toBeLessThan(ship.position.z);
   });
 });
 

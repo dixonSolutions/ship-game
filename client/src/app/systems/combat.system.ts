@@ -1,18 +1,39 @@
-import type { AiShipState, ShipControls, ShipState, ShotVisual, Vec3 } from './types';
+import { AI_HULL_RADIUS, CollisionSystem, PLAYER_HULL_RADIUS } from './collision.system';
+import type {
+  AiShipState,
+  Projectile,
+  ShipControls,
+  ShipState,
+  ShotVisual,
+  Vec3,
+} from './types';
 import { wrapAngle } from './wind.system';
 
-export interface ShotEvent {
+export interface FireRequest {
   originId: string;
-  targetId?: string;
-  damage: number;
   origin: Vec3;
-  target: Vec3;
-  hit: boolean;
+  yaw: number;
+  pitch: number;
+  muzzleSpeed?: number;
 }
+
+export interface ProjectileTickResult {
+  projectiles: Projectile[];
+  visuals: ShotVisual[];
+  player: ShipState;
+  aiShips: AiShipState[];
+  hits: Array<{ targetId: string; damage: number; position: Vec3 }>;
+  waterSplashes: Vec3[];
+}
+
+const GRAVITY = 9.2;
+const MUZZLE = 42;
+const MAX_FLIGHT = 3.8;
 
 export class CombatSystem {
   private reloadTimer = 0;
   private shotId = 0;
+  private readonly collisions = new CollisionSystem();
 
   getReloadRemaining(): number {
     return this.reloadTimer;
@@ -30,92 +51,190 @@ export class CombatSystem {
     };
   }
 
-  resolvePlayerShot(player: ShipState, controls: ShipControls, aiShips: AiShipState[]): ShotEvent {
-    const aimYaw = player.heading + controls.cannonAimYaw;
-    const range = 48;
-    const origin: Vec3 = {
-      x: player.position.x + Math.sin(aimYaw) * 2.2,
-      y: player.position.y + 1.4,
-      z: player.position.z + Math.cos(aimYaw) * 2.2,
+  /** Spawn a live cannonball with ballistic velocity. */
+  spawnProjectile(req: FireRequest): { projectile: Projectile; visuals: ShotVisual[] } {
+    const speed = req.muzzleSpeed ?? MUZZLE;
+    const pitch = clamp(req.pitch, -0.05, 0.65);
+    const vx = Math.sin(req.yaw) * Math.cos(pitch) * speed;
+    const vy = Math.sin(pitch) * speed * 0.85 + 2.5;
+    const vz = Math.cos(req.yaw) * Math.cos(pitch) * speed;
+    const id = `ball-${++this.shotId}`;
+
+    const projectile: Projectile = {
+      id,
+      originId: req.originId,
+      position: { ...req.origin },
+      velocity: { x: vx, y: vy, z: vz },
+      age: 0,
+      alive: true,
     };
 
-    let best: AiShipState | undefined;
-    let bestScore = Number.POSITIVE_INFINITY;
+    const visuals: ShotVisual[] = [
+      {
+        id: `${id}-smoke`,
+        origin: { ...req.origin },
+        target: { ...req.origin },
+        age: 0,
+        lifetime: 0.85,
+        kind: 'smoke',
+      },
+      {
+        id: `${id}-ball`,
+        origin: { ...req.origin },
+        target: { ...req.origin },
+        age: 0,
+        lifetime: MAX_FLIGHT,
+        kind: 'ball',
+        projectileId: id,
+      },
+    ];
 
-    for (const ai of aiShips) {
-      if (ai.ship.hullIntegrity <= 0) continue;
-      const dx = ai.ship.position.x - player.position.x;
-      const dz = ai.ship.position.z - player.position.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist > range || dist < 2) continue;
+    return { projectile, visuals };
+  }
 
-      const bearing = Math.atan2(dx, dz);
-      const angleError = Math.abs(wrapAngle(bearing - aimYaw));
-      const score = dist + angleError * 18;
-      // Prefer targets roughly in the aim cone (~55°).
-      if (angleError < 0.95 && score < bestScore) {
-        best = ai;
-        bestScore = score;
-      }
-    }
-
-    if (!best) {
-      const miss: Vec3 = {
-        x: origin.x + Math.sin(aimYaw) * range * 0.7,
-        y: 0.5,
-        z: origin.z + Math.cos(aimYaw) * range * 0.7,
-      };
-      return { originId: 'player', damage: 0, origin, target: miss, hit: false };
-    }
-
-    const dist = Math.hypot(
-      best.ship.position.x - player.position.x,
-      best.ship.position.z - player.position.z,
-    );
-    const falloff = clamp(1 - dist / range, 0.25, 1);
-    const damage = 0.14 * falloff * (0.85 + Math.random() * 0.3);
-
+  buildPlayerFire(player: ShipState, controls: ShipControls): FireRequest {
+    const yaw = player.heading + controls.cannonAimYaw;
+    const pitch = controls.cannonAimPitch;
     return {
       originId: 'player',
-      targetId: best.id,
-      damage,
-      origin,
-      target: {
-        x: best.ship.position.x,
-        y: best.ship.position.y + 1,
-        z: best.ship.position.z,
+      yaw,
+      pitch,
+      origin: {
+        x: player.position.x + Math.sin(yaw) * 2.4,
+        y: player.position.y + 1.35,
+        z: player.position.z + Math.cos(yaw) * 2.4,
       },
-      hit: true,
     };
   }
 
-  resolveAiShot(ai: AiShipState, player: ShipState): ShotEvent | null {
+  /** AI broadside fire request, or null if not ready / not aimed. */
+  buildAiFire(ai: AiShipState, player: ShipState): FireRequest | null {
     if (!ai.hostile || ai.ship.hullIntegrity <= 0 || ai.reloadTimer > 0) return null;
 
     const dx = player.position.x - ai.ship.position.x;
     const dz = player.position.z - ai.ship.position.z;
     const dist = Math.hypot(dx, dz);
-    if (dist > 36 || dist < 4) return null;
+    if (dist > 40 || dist < 5) return null;
 
-    // Broadside: fire when roughly abeam of the player.
     const bearing = Math.atan2(dx, dz);
     const relative = Math.abs(wrapAngle(bearing - ai.ship.heading));
-    const abeam = Math.abs(relative - Math.PI / 2) < 0.55;
+    const abeam = Math.abs(relative - Math.PI / 2) < 0.6;
     if (!abeam) return null;
 
-    const origin: Vec3 = {
-      x: ai.ship.position.x,
-      y: ai.ship.position.y + 1.2,
-      z: ai.ship.position.z,
-    };
-    const damage = 0.045 * (0.8 + Math.random() * 0.35);
+    const side = ai.broadsideSide;
+    const yaw = ai.ship.heading + (Math.PI / 2) * side;
+    const lead = dist / MUZZLE;
+    const aimYaw =
+      Math.atan2(
+        player.position.x + Math.sin(player.heading) * player.speed * lead - ai.ship.position.x,
+        player.position.z + Math.cos(player.heading) * player.speed * lead - ai.ship.position.z,
+      ) || yaw;
+
     return {
       originId: ai.id,
-      targetId: 'player',
-      damage,
-      origin,
-      target: { ...player.position, y: player.position.y + 1 },
-      hit: Math.random() > 0.4,
+      yaw: aimYaw,
+      pitch: 0.12 + Math.min(0.25, dist * 0.004),
+      muzzleSpeed: MUZZLE * 0.92,
+      origin: {
+        x: ai.ship.position.x + Math.sin(yaw) * 1.6,
+        y: ai.ship.position.y + 1.25,
+        z: ai.ship.position.z + Math.cos(yaw) * 1.6,
+      },
+    };
+  }
+
+  tickProjectiles(
+    projectiles: Projectile[],
+    player: ShipState,
+    aiShips: AiShipState[],
+    waterHeightAt: (x: number, z: number) => number,
+    dt: number,
+    existingVisuals: ShotVisual[],
+  ): ProjectileTickResult {
+    let nextPlayer = player;
+    let nextAi = aiShips;
+    const hits: ProjectileTickResult['hits'] = [];
+    const waterSplashes: Vec3[] = [];
+    const nextVisuals = [...existingVisuals];
+    const nextBalls: Projectile[] = [];
+
+    for (const ball of projectiles) {
+      if (!ball.alive) continue;
+
+      const pos: Vec3 = {
+        x: ball.position.x + ball.velocity.x * dt,
+        y: ball.position.y + ball.velocity.y * dt,
+        z: ball.position.z + ball.velocity.z * dt,
+      };
+      const vel: Vec3 = {
+        x: ball.velocity.x * (1 - 0.015 * dt),
+        y: ball.velocity.y - GRAVITY * dt,
+        z: ball.velocity.z * (1 - 0.015 * dt),
+      };
+      const age = ball.age + dt;
+      let alive = age < MAX_FLIGHT;
+
+      // Water impact
+      const waterY = waterHeightAt(pos.x, pos.z);
+      if (pos.y <= waterY + 0.15) {
+        alive = false;
+        waterSplashes.push({ x: pos.x, y: waterY + 0.4, z: pos.z });
+        nextVisuals.push({
+          id: `${ball.id}-splash`,
+          origin: { x: pos.x, y: waterY + 0.4, z: pos.z },
+          target: { x: pos.x, y: waterY + 0.4, z: pos.z },
+          age: 0,
+          lifetime: 0.7,
+          kind: 'splash',
+        });
+      }
+
+      // Hull hits — player (from AI balls)
+      if (alive && ball.originId !== 'player') {
+        if (this.collisions.hitShip(pos, nextPlayer, PLAYER_HULL_RADIUS)) {
+          const damage = 0.05 + Math.random() * 0.04;
+          nextPlayer = this.applyDamage(nextPlayer, damage);
+          hits.push({ targetId: 'player', damage, position: pos });
+          alive = false;
+          nextVisuals.push(this.impactVisual(ball.id, pos));
+        }
+      }
+
+      // Hull hits — AI ships
+      if (alive) {
+        for (let i = 0; i < nextAi.length; i++) {
+          const ai = nextAi[i]!;
+          if (ai.id === ball.originId) continue;
+          if (!this.collisions.hitShip(pos, ai.ship, AI_HULL_RADIUS)) continue;
+          const damage = 0.12 + Math.random() * 0.08;
+          hits.push({ targetId: ai.id, damage, position: pos });
+          nextAi[i] = { ...ai, ship: this.applyDamage(ai.ship, damage) };
+          alive = false;
+          nextVisuals.push(this.impactVisual(ball.id, pos));
+          break;
+        }
+      }
+
+      // Update ball visual position
+      const ballVis = nextVisuals.find((v) => v.projectileId === ball.id && v.kind === 'ball');
+      if (ballVis) {
+        ballVis.target = { ...pos };
+        ballVis.origin = { ...pos };
+        ballVis.age = age;
+      }
+
+      if (alive) {
+        nextBalls.push({ ...ball, position: pos, velocity: vel, age, alive: true });
+      }
+    }
+
+    return {
+      projectiles: nextBalls,
+      visuals: this.ageVisuals(nextVisuals, dt),
+      player: nextPlayer,
+      aiShips: nextAi,
+      hits,
+      waterSplashes,
     };
   }
 
@@ -125,43 +244,33 @@ export class CombatSystem {
     return { ...ship, hullIntegrity, sailIntegrity };
   }
 
-  createShotVisuals(shot: ShotEvent): ShotVisual[] {
-    const id = `shot-${++this.shotId}`;
-    const visuals: ShotVisual[] = [
-      {
-        id: `${id}-trace`,
-        origin: shot.origin,
-        target: shot.target,
-        age: 0,
-        lifetime: 0.45,
-        kind: 'cannon',
+  applyRecoil(ship: ShipState, yaw: number, amount = 0.55): ShipState {
+    return {
+      ...ship,
+      speed: Math.max(0, ship.speed - amount),
+      position: {
+        x: ship.position.x - Math.sin(yaw) * 0.15,
+        y: ship.position.y,
+        z: ship.position.z - Math.cos(yaw) * 0.15,
       },
-      {
-        id: `${id}-smoke`,
-        origin: shot.origin,
-        target: shot.origin,
-        age: 0,
-        lifetime: 0.9,
-        kind: 'smoke',
-      },
-    ];
-    if (shot.hit) {
-      visuals.push({
-        id: `${id}-impact`,
-        origin: shot.target,
-        target: shot.target,
-        age: 0,
-        lifetime: 0.55,
-        kind: 'impact',
-      });
-    }
-    return visuals;
+    };
   }
 
   ageVisuals(visuals: ShotVisual[], dt: number): ShotVisual[] {
     return visuals
       .map((v) => ({ ...v, age: v.age + dt }))
       .filter((v) => v.age < v.lifetime);
+  }
+
+  private impactVisual(ballId: string, pos: Vec3): ShotVisual {
+    return {
+      id: `${ballId}-impact`,
+      origin: { ...pos },
+      target: { ...pos },
+      age: 0,
+      lifetime: 0.55,
+      kind: 'impact',
+    };
   }
 }
 

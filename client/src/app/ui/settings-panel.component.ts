@@ -72,8 +72,13 @@ import type { GraphicsQuality, WeatherId } from '../systems/types';
           <p-toggleswitch [(ngModel)]="highContrast" (onChange)="onAccess()" />
         </label>
 
+        <label class="toggle-row">
+          <span>Debug physics (D)</span>
+          <p-toggleswitch [(ngModel)]="debugPhysics" (onChange)="onDebug()" />
+        </label>
+
         <p class="hint">
-          Steer Q/E · Trim W/S · Throttle Shift · Fire Space · Anchor A · Aim with mouse · Esc pause
+          Steer Q/E · Trim W/S · Throttle Shift · Fire Space · Anchor A · Aim mouse · D debug · Esc pause
         </p>
       </aside>
     }
@@ -137,6 +142,7 @@ export class SettingsPanelComponent {
   graphics: GraphicsQuality = this.engine.snapshot().settings.graphicsQuality;
   reduceMotion = this.engine.snapshot().settings.accessibility.reduceMotion;
   highContrast = this.engine.snapshot().settings.accessibility.highContrast;
+  debugPhysics = this.engine.snapshot().settings.debugPhysics;
 
   readonly weatherOptions: { label: string; value: WeatherId }[] = [
     { label: 'Clear', value: 'clear' },
@@ -187,5 +193,9 @@ export class SettingsPanelComponent {
         highContrast: this.highContrast,
       },
     });
+  }
+
+  onDebug(): void {
+    this.engine.patchSettings({ debugPhysics: this.debugPhysics });
   }
 }

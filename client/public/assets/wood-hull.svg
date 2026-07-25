@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="plank" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8b5a2b"/>
+      <stop offset="45%" stop-color="#6e4320"/>
+      <stop offset="100%" stop-color="#4a2c14"/>
+    </linearGradient>
+    <pattern id="grain" width="32" height="18" patternUnits="userSpaceOnUse">
+      <rect width="32" height="18" fill="url(#plank)"/>
+      <path d="M0 17h32" stroke="#3a2210" stroke-width="1.2" opacity="0.55"/>
+      <path d="M2 4c6 2 10-1 16 1s10-2 14 0" fill="none" stroke="#5a3518" stroke-width="0.7" opacity="0.35"/>
+      <circle cx="22" cy="9" r="1.2" fill="#3d2410" opacity="0.35"/>
+    </pattern>
+  </defs>
+  <rect width="256" height="256" fill="url(#grain)"/>
+  <rect x="0" y="0" width="256" height="256" fill="#2a1608" opacity="0.08"/>
+</svg>

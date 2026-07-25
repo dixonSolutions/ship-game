@@ -80,6 +80,9 @@ export class InputService implements OnDestroy {
       if (phase === 'playing') this.engine.setPhase('paused');
       else if (phase === 'paused') this.engine.setPhase('playing');
     }
+    if (key === 'd') {
+      this.engine.toggleDebugPhysics();
+    }
   }
 
   private onPointerDown(e: PointerEvent): void {

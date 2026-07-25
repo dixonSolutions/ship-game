@@ -97,13 +97,24 @@ export interface AiShipState {
   broadsideSide: 1 | -1;
 }
 
+export interface Projectile {
+  id: string;
+  originId: string;
+  position: Vec3;
+  velocity: Vec3;
+  age: number;
+  alive: boolean;
+}
+
 export interface ShotVisual {
   id: string;
   origin: Vec3;
   target: Vec3;
   age: number;
   lifetime: number;
-  kind: 'cannon' | 'impact' | 'smoke';
+  kind: 'cannon' | 'impact' | 'smoke' | 'ball' | 'splash';
+  /** When kind === 'ball', tracks the live projectile id. */
+  projectileId?: string;
 }
 
 export interface AccessibilitySettings {
@@ -116,6 +127,8 @@ export interface GameSettings {
   masterVolume: number;
   waveScale: number;
   accessibility: AccessibilitySettings;
+  /** Show collision radii and projectile helpers. */
+  debugPhysics: boolean;
 }
 
 export interface GameSnapshot {
@@ -132,6 +145,7 @@ export interface GameSnapshot {
   reloadRemaining: number;
   lastHitMarker?: { targetId: string; damage: number; age: number };
   shotVisuals: ShotVisual[];
+  projectiles: Projectile[];
   settings: GameSettings;
   dialogueLine?: string;
   lastError?: string;
