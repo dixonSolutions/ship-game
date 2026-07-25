@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
   actions: write
@@ -34,7 +34,7 @@ jobs:
           path: darkplaces/shipgame/progs.dat
 
   flatpak-pages:
-    name: Flatpak + GitHub Pages remote
+    name: Flatpak + Pages remote + Release
     runs-on: ubuntu-latest
     needs: quakec
     environment:
@@ -57,7 +57,7 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub \
             https://dl.flathub.org/repo/flathub.flatpakrepo
 
-      - name: Build Flatpak into OSTree archive repo
+      - name: Build Flatpak OSTree archive repo
         run: |
           set -euo pipefail
           mkdir -p pages
@@ -68,42 +68,112 @@ jobs:
             flatpak/com.dixonsolutions.ShipGame.yml
           flatpak build-update-repo --generate-static-deltas --prune pages/repo
 
-      - name: Write Pages index + flatpakrepo
+      - name: Build Flatpak bundle for Releases
         run: |
           set -euo pipefail
-          REPO_OWNER="${GITHUB_REPOSITORY_OWNER}"
+          flatpak build-bundle pages/repo \
+            com.dixonsolutions.ShipGame.flatpak \
+            com.dixonsolutions.ShipGame \
+            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo
+          ls -lh com.dixonsolutions.ShipGame.flatpak
+
+      - name: Write full Pages remote metadata
+        run: |
+          set -euo pipefail
+          # github.io hosts are lowercase
+          REPO_OWNER="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
           PAGES_URL="https://${REPO_OWNER}.github.io/${REPO_NAME}"
+          RELEASES_URL="https://github.com/${GITHUB_REPOSITORY}/releases/latest"
+
           cat > pages/shipgame.flatpakrepo <<EOF
           [Flatpak Repo]
           Title=Ship Game
           Url=${PAGES_URL}/repo
           Homepage=${PAGES_URL}
-          Comment=Unsigned CI Flatpak remote for Ship Game (DarkPlaces)
+          Comment=Full OSTree Flatpak remote for Ship Game (DarkPlaces). Bundle also on GitHub Releases.
           EOF
           sed -i 's/^[[:space:]]*//' pages/shipgame.flatpakrepo
+
+          cat > pages/com.dixonsolutions.ShipGame.flatpakref <<EOF
+          [Flatpak Ref]
+          Title=Ship Game
+          Name=com.dixonsolutions.ShipGame
+          Branch=master
+          Url=${PAGES_URL}/repo
+          SuggestRemoteName=shipgame
+          Homepage=${PAGES_URL}
+          IsRuntime=false
+          RuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo
+          EOF
+          sed -i 's/^[[:space:]]*//' pages/com.dixonsolutions.ShipGame.flatpakref
+
           cat > pages/index.html <<EOF
           <!doctype html>
           <html lang="en">
           <head><meta charset="utf-8"><title>Ship Game Flatpak</title>
           <style>body{font-family:system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem;line-height:1.5}
-          code,pre{background:#f4f4f4;padding:.2rem .4rem;border-radius:4px}</style></head>
+          code,pre{background:#f4f4f4;padding:.2rem .4rem;border-radius:4px}a{color:#0b5}</style></head>
           <body>
-          <h1>Ship Game — Flatpak remote</h1>
+          <h1>Ship Game — Flatpak</h1>
           <p>DarkPlaces + QuakeC sailing slice. Free assets only (no proprietary Quake paks).</p>
-          <pre>flatpak remote-add --if-not-exists shipgame ${PAGES_URL}/shipgame.flatpakrepo
+
+          <h2>1. GitHub Releases (download the .flatpak)</h2>
+          <p>The installable bundle is published on
+          <a href="${RELEASES_URL}">Releases → latest</a>
+          as <code>com.dixonsolutions.ShipGame.flatpak</code>.</p>
+          <pre>flatpak install --user ./com.dixonsolutions.ShipGame.flatpak
+          flatpak run com.dixonsolutions.ShipGame</pre>
+
+          <h2>2. Full GitHub Pages remote (updates via flatpak update)</h2>
+          <pre>flatpak remote-add --if-not-exists --user shipgame ${PAGES_URL}/shipgame.flatpakrepo
           flatpak install shipgame com.dixonsolutions.ShipGame
           flatpak run com.dixonsolutions.ShipGame</pre>
-          <p><a href="shipgame.flatpakrepo">shipgame.flatpakrepo</a> · <a href="https://github.com/${GITHUB_REPOSITORY}">source</a></p>
+          <p>Or one-shot:
+          <a href="com.dixonsolutions.ShipGame.flatpakref">com.dixonsolutions.ShipGame.flatpakref</a></p>
+
+          <p><a href="shipgame.flatpakrepo">shipgame.flatpakrepo</a> ·
+          <a href="${RELEASES_URL}">GitHub Releases</a> ·
+          <a href="https://github.com/${GITHUB_REPOSITORY}">source</a></p>
           </body></html>
           EOF
           touch pages/.nojekyll
 
-      - name: Upload Flatpak Pages artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: flatpak-pages-repo
-          path: pages
+      - name: Publish Flatpak to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="flatpak-latest"
+          TITLE="Flatpak latest (${GITHUB_SHA::7})"
+          NOTES="$(cat <<EOF
+          ## Ship Game Flatpak
+
+          - Bundle: \`com.dixonsolutions.ShipGame.flatpak\`
+          - Commit: ${GITHUB_SHA}
+          - Pages remote: https://$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]').github.io/${GITHUB_REPOSITORY#*/}/
+
+          ### Install from this release
+          \`\`\`bash
+          flatpak install --user ./com.dixonsolutions.ShipGame.flatpak
+          flatpak run com.dixonsolutions.ShipGame
+          \`\`\`
+
+          ### Or use the Pages remote (updates)
+          \`\`\`bash
+          flatpak remote-add --if-not-exists --user shipgame \\
+            https://$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]').github.io/${GITHUB_REPOSITORY#*/}/shipgame.flatpakrepo
+          flatpak install shipgame com.dixonsolutions.ShipGame
+          \`\`\`
+          EOF
+          )"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" com.dixonsolutions.ShipGame.flatpak --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" --latest
+          else
+            gh release create "$TAG" com.dixonsolutions.ShipGame.flatpak \
+              --title "$TITLE" --notes "$NOTES" --latest
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
