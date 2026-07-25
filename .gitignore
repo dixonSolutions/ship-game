@@ -54,6 +54,10 @@ test-results/
 # Generated audio / local media cache
 .audio-cache/
 server/.audio-cache/
+# Downloaded playable assets (from npm run assets:download) — keep .gitkeep
+client/public/assets/audio/*.mp3
+client/public/assets/voice/*.mp3
+client/public/assets/audio/manifest.json
 
 # Local browser / tooling state
 browseros.db

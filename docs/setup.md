@@ -27,9 +27,8 @@ Copy `.env.example` → `.env`. Never commit `.env`.
 | `ELEVENLABS_API_KEY` | Server-only ElevenLabs key for TTS/SFX |
 | `AUDIO_PROVIDER` | `elevenlabs` (default), `polly`, or `mock` |
 | `CLIENT_PORT` | Angular dev server port (default `4200`) |
-| `SERVER_PORT` | API listen port (default `8787`; alias `PORT` still works) |
-| `API_BASE_URL` | Optional browser API URL (default `http://localhost:$SERVER_PORT`) |
-| `CORS_ORIGIN` | Allowed browser origin (default `http://localhost:$CLIENT_PORT`) |
+| `ELEVENLABS_API_KEY` | **Dev download only** — used by `npm run assets:download` |
+| `SERVER_PORT` | Legacy optional API port (not required for play) |
 
 ### Ports (not hard-coded)
 
@@ -59,16 +58,15 @@ SERVER_PORT=9090
 From the **repo root**:
 
 ```bash
-npm run dev              # foreground client + server
-npm run dev:client       # Angular only
-npm run dev:server       # API only
-npm run build            # production build
-npm run stop             # stop client + server
-npm run restart          # background restart both
-npm run start:bg         # start both detached
+npm run assets:download  # optional: fill public/assets from .env secrets
+npm run dev              # Angular client only
+npm run build            # production client build
+npm run stop             # stop client
+npm run restart          # background restart client
 ```
 
-Open `http://localhost:$CLIENT_PORT` (default `4200`) and click **Cast off**.
+Open `http://localhost:$CLIENT_PORT` (default `4200`) and click **Cast off**.  
+See [offline-assets.md](offline-assets.md).
 
 ## Optimus UI
 
@@ -87,5 +85,4 @@ Source: https://github.com/openng-org/optimus-ui · Docs: https://optimus.openng
 npm run typecheck
 npm test
 npm run build
-curl -s "http://localhost:${SERVER_PORT:-8787}/health"
 ```

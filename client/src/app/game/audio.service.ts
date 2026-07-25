@@ -18,7 +18,8 @@ type BankId =
 
 /**
  * Immersive layered audio.
- * Prefers ElevenLabs bank from the secure API; falls back to procedural WAV.
+ * Prefers local files under /assets/audio (from `npm run assets:download`);
+ * falls back to procedural WAV. Never calls a runtime API server.
  */
 @Injectable({ providedIn: 'root' })
 export class AudioService {
@@ -143,7 +144,7 @@ export class AudioService {
   }
 
   private async loadElevenBank(): Promise<void> {
-    // Prefetch loop beds; one-shots load lazily on first play (server-cached after).
+    // Prefetch loop beds from local public assets; one-shots lazy-load.
     const critical: BankId[] = [
       'ambient_wind',
       'ambient_waves',

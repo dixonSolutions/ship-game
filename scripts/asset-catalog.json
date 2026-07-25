@@ -1,0 +1,59 @@
+{
+  "sounds": {
+    "ambient_wind": {
+      "text": "Continuous ocean wind across open sea, airy whoosh, no melody, seamless loopable ambience",
+      "durationSeconds": 8,
+      "loop": true
+    },
+    "ambient_waves": {
+      "text": "Continuous deep ocean waves lapping and rolling against a wooden hull, wet splash texture, seamless loop",
+      "durationSeconds": 8,
+      "loop": true
+    },
+    "ambient_creak": {
+      "text": "Old wooden sailing ship creaking ropes and timber under strain, sparse soft groans, seamless loop",
+      "durationSeconds": 6,
+      "loop": true
+    },
+    "ambient_rain": {
+      "text": "Heavy rain on wooden deck and sail cloth at sea, dense droplets, seamless loop, no thunder",
+      "durationSeconds": 7,
+      "loop": true
+    },
+    "sfx_thunder": {
+      "text": "Distant then close ocean storm thunder crack with rumble over open water",
+      "durationSeconds": 3.5,
+      "loop": false
+    },
+    "sfx_cannon": {
+      "text": "Naval cannon firing from wooden warship, deep boom, brief powder smoke crackle, short",
+      "durationSeconds": 2.2,
+      "loop": false
+    },
+    "sfx_impact": {
+      "text": "Cannonball smashing into wooden hull at sea, splintering timber impact, short",
+      "durationSeconds": 1.8,
+      "loop": false
+    },
+    "sfx_splash": {
+      "text": "Ship bow cutting choppy waves with spray splash, wet ocean spray burst",
+      "durationSeconds": 1.6,
+      "loop": false
+    },
+    "sfx_sail_flap": {
+      "text": "Large canvas sail snapping and flapping hard in strong wind, short burst",
+      "durationSeconds": 1.4,
+      "loop": false
+    },
+    "sfx_anchor": {
+      "text": "Heavy ship anchor chain rattling then splash into ocean water",
+      "durationSeconds": 2.5,
+      "loop": false
+    },
+    "music_horizon": {
+      "text": "Sparse atmospheric nautical underscore, low drones and soft strings, no vocals, melancholic sea horizon, seamless loopable",
+      "durationSeconds": 12,
+      "loop": true
+    }
+  }
+}

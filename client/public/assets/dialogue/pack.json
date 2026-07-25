@@ -1,0 +1,49 @@
+{
+  "lines": [
+    {
+      "id": "captain_clear",
+      "voice": "captain",
+      "text": "Steady as she goes. Keep the wind on our beam."
+    },
+    {
+      "id": "captain_storm",
+      "voice": "captain",
+      "text": "Storm rising. Trim for the blow and mind the heel."
+    },
+    {
+      "id": "helmsman_steer",
+      "voice": "helmsman",
+      "text": "Helm answering. Holding course through the chop."
+    },
+    {
+      "id": "gunner_ready",
+      "voice": "gunner",
+      "text": "Guns ready. Waiting on your mark, Captain."
+    },
+    {
+      "id": "lookout_sail",
+      "voice": "lookout",
+      "text": "Sail on the horizon. Hostile colors, maybe."
+    },
+    {
+      "id": "boatswain_damage",
+      "voice": "boatswain",
+      "text": "Hull takes a beating. We need care below."
+    },
+    {
+      "id": "generic_sharp",
+      "voice": "boatswain",
+      "text": "Stay sharp."
+    }
+  ],
+  "byCue": {
+    "clear": "captain_clear",
+    "storm": "captain_storm",
+    "weather": "captain_storm",
+    "steer": "helmsman_steer",
+    "combat": "gunner_ready",
+    "sail": "lookout_sail",
+    "damage": "boatswain_damage",
+    "default": "generic_sharp"
+  }
+}

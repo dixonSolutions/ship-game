@@ -3,7 +3,7 @@
 Immersive sailing combat game.
 
 **Primary native build:** [DarkPlaces](https://github.com/darkplacesengine/darkplaces) Quake engine + QuakeC (`darkplaces/shipgame/`).  
-**Legacy web build:** Angular + Optimus UI + Three.js client and Node API (`client/`, `server/`) — still supported for browser play.
+**Browser build:** Angular + Optimus UI + Three.js (`client/`) — **offline**; secrets only for `npm run assets:download`.
 
 ## Quick start (DarkPlaces / QuakeC)
 
@@ -15,19 +15,18 @@ Immersive sailing combat game.
 
 See [docs/darkplaces.md](docs/darkplaces.md) for Flatpak / GitHub Pages remote install.
 
-## Quick start (legacy browser)
+## Quick start (browser, offline)
 
 ```bash
-cp .env.example .env   # fill secrets only on the server machine; never commit
+cp .env.example .env          # local secrets only; never commit
 npm install
-npm run dev            # ports from root .env (defaults client :4200, server :8787)
+npm run assets:download       # optional: pull MP3s via ELEVENLABS_API_KEY
+npm run dev                   # client only (CLIENT_PORT, default 4200)
 ```
 
-- Ports: set `CLIENT_PORT` / `SERVER_PORT` in `.env` (see `.env.example`)
-- Client: `http://localhost:$CLIENT_PORT`  
-- API health: `http://localhost:$SERVER_PORT/health`  
-- Default `MOCK_AWS=true` so the UI runs without AWS credentials.
-- Set `ELEVENLABS_API_KEY` for generative sea audio (see [docs/elevenlabs-audio.md](docs/elevenlabs-audio.md)).
+- Client: `http://localhost:$CLIENT_PORT`
+- No runtime server — see [docs/offline-assets.md](docs/offline-assets.md)
+- Without downloaded audio, procedural WAV fallbacks still work
 
 ## Workspace
 
@@ -36,8 +35,8 @@ npm run dev            # ports from root .env (defaults client :4200, server :87
 | `darkplaces/shipgame/` | QuakeC gamedir (sailing, weather, combat) + free `ocean1` map |
 | `flatpak/` | `com.dixonsolutions.ShipGame` Flatpak + desktop/metainfo |
 | `branding/icons/` | App icon (SVG + PNG) |
-| `client/` | Legacy Angular 21 + Three.js browser client |
-| `server/` | Legacy Express API — Bedrock / Polly / ElevenLabs |
+| `client/` | Offline Angular 21 + Three.js browser client |
+| `server/` | Legacy Express helpers (not required for play) |
 | `shared/` | Zod schemas & shared API contracts |
 | `docs/` | Architecture, DarkPlaces, controls, security, testing |
 
@@ -45,42 +44,34 @@ npm run dev            # ports from root .env (defaults client :4200, server :87
 
 | Script | Description |
 | --- | --- |
-| `npm run dev` | Foreground client + server (same as `npm start`) |
-| `npm run dev:client` | Angular only (`CLIENT_PORT`) |
-| `npm run dev:server` | API only (`SERVER_PORT`, watch mode) |
-| `npm run build` | Production build (shared → server → client) |
-| `npm run build:client` / `build:server` / `build:shared` | Partial builds |
-| `npm run stop` | Stop client + server |
-| `npm run stop:client` / `stop:server` | Stop one side |
-| `npm run restart` | Stop then start both in background |
-| `npm run restart:client` / `restart:server` | Restart one side |
-| `npm run start:bg` | Start both detached (PID files in `.local/pids/`) |
-| `npm run typecheck` | Shared + server + client |
-| `npm test` | Unit tests |
-| `npm run lint` | Lint / compile checks |
+| `npm run dev` | Angular client only (`CLIENT_PORT`) |
+| `npm run assets:download` | Dev: download audio/voice using `.env` secrets |
+| `npm run dev:client` | Same as `dev` |
+| `npm run dev:server` | Legacy API (optional; not needed for play) |
+| `npm run build` | Production client build |
+| `npm run stop` / `restart` / `start:bg` | Client process control |
+| `npm run typecheck` / `test` / `lint` | Shared + client checks |
 
 ### Typical loop
 
 ```bash
-npm run dev          # develop (Ctrl+C to stop the foreground pair)
-npm run build        # production build
-npm run stop         # kill stray client/server processes
-npm run restart      # background restart of both
+npm run assets:download   # once (or when refreshing audio)
+npm run dev               # browser play
+npm run build
 ```
 
 ## Security
 
-Secrets stay in `.env` (gitignored). The browser calls `/api/dialogue`, `/api/tts`, and `/api/sfx` only — never AWS or ElevenLabs keys. See [docs/bedrock-polly-security.md](docs/bedrock-polly-security.md) and [docs/elevenlabs-audio.md](docs/elevenlabs-audio.md).
+Secrets stay in `.env` (gitignored) and are read only by the asset download script. The browser loads `/assets/audio` and `/assets/voice` — never API keys. See [docs/offline-assets.md](docs/offline-assets.md).
 
 ## Docs
 
 | Doc | Contents |
 | --- | --- |
 | [docs/darkplaces.md](docs/darkplaces.md) | QuakeC build, DarkPlaces run, Flatpak Pages remote |
-| [docs/setup.md](docs/setup.md) | Legacy browser install, `.env` ports/secrets |
-| [docs/architecture.md](docs/architecture.md) | Client/server modules and tech choices |
+| [docs/setup.md](docs/setup.md) | Browser install, ports, `.env` |
+| [docs/offline-assets.md](docs/offline-assets.md) | Download script + offline play |
+| [docs/architecture.md](docs/architecture.md) | Modules and tech choices |
 | [docs/controls.md](docs/controls.md) | Keyboard, mouse, touch, gamepad, settings |
 | [docs/gameplay-systems.md](docs/gameplay-systems.md) | Wind, ocean, weather, collisions, combat, crew |
-| [docs/elevenlabs-audio.md](docs/elevenlabs-audio.md) | Server-side TTS/SFX |
-| [docs/bedrock-polly-security.md](docs/bedrock-polly-security.md) | Credential boundary |
 | [docs/screenshots/](docs/screenshots/) | Browser playtest captures |

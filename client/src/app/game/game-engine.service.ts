@@ -420,18 +420,23 @@ export class GameEngineService {
           lastError: undefined,
         });
         try {
-          const blob = await this.dialogueApi.speak(res.reply, cue.member.voiceId);
-          await this.audio.playVoiceBlob(blob);
+          const blob = await this.dialogueApi.speak(
+            res.reply,
+            cue.member.voiceId,
+            res.voiceClipId,
+          );
+          if (blob.size > 0) {
+            await this.audio.playVoiceBlob(blob);
+          }
         } catch {
-          // TTS optional — dialogue text still shows.
+          // Local voice optional — dialogue text still shows.
         }
       })
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Crew radio offline';
+      .catch(() => {
         this.snapshot.set({
           ...this.snapshot(),
-          dialogueLine: `${cue.member.name}: (static) Stay sharp.`,
-          lastError: message,
+          dialogueLine: `${cue.member.name}: Stay sharp.`,
+          lastError: undefined,
         });
       })
       .finally(() => {
