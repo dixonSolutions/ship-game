@@ -227,7 +227,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
           // Crest factor for foam (steep rising faces)
           float hx = waveHeight(pos.xz + vec2(0.45, 0.0)) - h;
           float hz = waveHeight(pos.xz + vec2(0.0, 0.45)) - h;
-          vCrest = clamp(length(vec2(hx, hz)) * 1.8 + h * 0.35, 0.0, 1.5);
+          vCrest = clamp(length(vec2(hx, hz)) * 1.35 + max(0.0, h) * 0.12, 0.0, 1.5);
           vec4 world = modelMatrix * vec4(pos, 1.0);
           vWorld = world.xyz;
           gl_Position = projectionMatrix * viewMatrix * world;
@@ -249,17 +249,18 @@ export class SceneHost implements AfterViewInit, OnDestroy {
           vec3 n = normalize(cross(dx, dy));
           float fresnel = pow(1.0 - max(dot(n, vec3(0.0, 1.0, 0.0)), 0.0), 2.4);
           float ndl = max(dot(n, uSunDir), 0.0);
-          float depthMix = clamp(vWave * 0.28 + 0.4 + uWindStrength * 0.08, 0.0, 1.0);
+          // Prefer deep blue; only lift toward shallow on higher samples.
+          float depthMix = clamp(vWave * 0.16 + 0.22 + uWindStrength * 0.05, 0.0, 0.75);
           vec3 col = mix(uColorDeep, uColorShallow, depthMix);
-          // Darker troughs, brighter windward faces
-          col *= 0.82 + ndl * 0.28;
-          col += vec3(0.45, 0.65, 0.78) * fresnel * (0.4 + uChop * 0.2);
-          col += vec3(1.0, 0.96, 0.85) * pow(ndl, 42.0) * 0.45;
-          // Whitecaps on steep crests / wind streaks
-          float foamMask = smoothstep(0.5, 1.15, vCrest) * uFoam * (0.45 + uWindStrength * 0.55);
-          foamMask += smoothstep(0.75, 1.8, vWave) * uFoam * 0.28;
-          foamMask += pow(max(0.0, 1.0 - n.y), 2.6) * uChop * 0.12;
-          col = mix(col, vec3(0.88, 0.94, 0.97), clamp(foamMask, 0.0, 0.7));
+          // Darker troughs, brighter windward faces — keep saturation
+          col *= 0.78 + ndl * 0.22;
+          col += vec3(0.28, 0.48, 0.62) * fresnel * (0.28 + uChop * 0.12);
+          col += vec3(0.95, 0.92, 0.82) * pow(ndl, 48.0) * 0.28;
+          // Whitecaps only on steep crest tips — never wash the whole face white
+          float foamMask = smoothstep(0.85, 1.35, vCrest) * uFoam * (0.28 + uWindStrength * 0.35);
+          foamMask += smoothstep(1.15, 1.9, vWave) * uFoam * 0.12;
+          foamMask += pow(max(0.0, 1.0 - n.y), 3.4) * uChop * 0.05;
+          col = mix(col, vec3(0.72, 0.84, 0.9), clamp(foamMask, 0.0, 0.38));
           gl_FragColor = vec4(col, 1.0);
         }
       `,
@@ -630,7 +631,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     const windDir = this.oceanMaterial.uniforms['uWindDir']!.value as THREE.Vector2;
     windDir.set(Math.sin(snap.ocean.windDirectionRad), Math.cos(snap.ocean.windDirectionRad));
     this.oceanMaterial.uniforms['uFoam']!.value =
-      0.22 + snap.ocean.chop * 0.4 + snap.ocean.windStrength * 0.25;
+      0.14 + snap.ocean.chop * 0.22 + snap.ocean.windStrength * 0.14;
 
     this.animateRain(snap, dt);
     this.animateSpray(snap, dt);
@@ -819,23 +820,24 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       skyMat.uniforms['uTop']!.value.set(0x2a2e34);
       skyMat.uniforms['uHorizon']!.value.set(0x5a5040);
       skyMat.uniforms['uBottom']!.value.set(0x1a2218);
-      this.sun.intensity *= 0.55;
-      this.hemi.intensity *= 0.7;
+      this.sun.intensity *= 0.7;
+      this.hemi.intensity *= 0.85;
+      this.oceanMaterial?.uniforms['uColorDeep']!.value.set(0x081f32);
+      this.oceanMaterial?.uniforms['uColorShallow']!.value.set(0x1f5a78);
     } else if (snap.weather.id === 'tsunami') {
       skyMat.uniforms['uTop']!.value.set(night ? 0x0b1830 : 0x4a6a7a);
-      skyMat.uniforms['uHorizon']!.value.set(night ? 0x24364f : 0x9eb0b8);
+      skyMat.uniforms['uHorizon']!.value.set(night ? 0x24364f : 0x8aa4b0);
       skyMat.uniforms['uBottom']!.value.set(night ? 0x0a1622 : 0x163040);
+      this.oceanMaterial?.uniforms['uColorDeep']!.value.set(0x07283c);
+      this.oceanMaterial?.uniforms['uColorShallow']!.value.set(0x246a8c);
     } else {
       skyMat.uniforms['uTop']!.value.set(night ? 0x0b1830 : 0x87b7e0);
       skyMat.uniforms['uHorizon']!.value.set(night ? 0x24364f : 0xd7e6f2);
       skyMat.uniforms['uBottom']!.value.set(night ? 0x0a1622 : 0x1d3a4d);
+      this.oceanMaterial?.uniforms['uColorDeep']!.value.set(0x0a2f48);
+      this.oceanMaterial?.uniforms['uColorShallow']!.value.set(0x2a7194);
     }
     skyMat.uniforms['uFlash']!.value = snap.weather.lightningFlash;
-
-    if (this.oceanMaterial && snap.weather.id === 'tsunami') {
-      this.oceanMaterial.uniforms['uWaveHeight']!.value =
-        snap.ocean.waveHeight * (1 + snap.ocean.tsunamiPulse * (0.35 + intensity * 0.4));
-    }
 
     if (this.scene.fog instanceof THREE.FogExp2) {
       const fogBoost = snap.settings.accessibility.highContrast ? 0.6 : 1;

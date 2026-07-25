@@ -24,24 +24,25 @@ export class OceanSystem {
     intensity = 0.55,
   ): OceanState {
     const i = clamp(intensity, 0, 1);
+    // Keep boosts modest so severe weather stays seagoing, not alpine.
     const stormBoost =
       weather === 'hurricane'
-        ? 2.2 + i * 0.7
+        ? 1.45 + i * 0.35
         : weather === 'tornado'
-          ? 1.9 + i * 0.8
+          ? 1.2 + i * 0.25
           : weather === 'storm' || weather === 'lightning'
-            ? 1.55 + i * 0.5
+            ? 1.28 + i * 0.28
             : weather === 'rain'
-              ? 1.15 + i * 0.2
+              ? 1.1 + i * 0.12
               : weather === 'tsunami'
-                ? 1.35 + i * 0.45
+                ? 1.15 + i * 0.2
                 : 1;
 
     let tsunamiPulse = ocean.tsunamiPulse;
     if (weather === 'tsunami') {
-      // Build a rolling pulse; intensity controls fill rate and ceiling.
-      const ceiling = 0.45 + i * 0.55;
-      tsunamiPulse = Math.min(ceiling, tsunamiPulse + dt * (0.22 + i * 0.35));
+      // Rolling swell pulse; intensity controls fill rate and ceiling.
+      const ceiling = 0.28 + i * 0.42;
+      tsunamiPulse = Math.min(ceiling, tsunamiPulse + dt * (0.18 + i * 0.28));
     } else {
       tsunamiPulse = Math.max(0, tsunamiPulse - dt * 0.5);
     }
@@ -53,28 +54,29 @@ export class OceanSystem {
 
     // Slow natural wander so seas never look perfectly periodic.
     const wander = 0.04 * Math.sin(ocean.time * 0.17) + 0.03 * Math.sin(ocean.time * 0.41 + 1.7);
-    const tornadoChop = weather === 'tornado' ? 0.2 + i * 0.45 : 0;
+    // Tornado: local vortex does the drama; global chop stays restrained.
+    const tornadoChop = weather === 'tornado' ? 0.08 + i * 0.18 : 0;
     const swell = clamp(
-      0.4 + windStrength * 0.55 + tsunamiPulse * (0.55 + i * 0.5) + wander,
+      0.4 + windStrength * 0.5 + tsunamiPulse * (0.35 + i * 0.3) + wander,
       0.25,
-      1.55,
+      1.25,
     );
     const chop = clamp(
-      (0.32 + windStrength * 0.55 + wander * 0.45 + tornadoChop) * stormBoost,
-      0.22,
-      1.55,
+      (0.28 + windStrength * 0.45 + wander * 0.4 + tornadoChop) * stormBoost,
+      0.2,
+      1.15,
     );
     const baseHeight = clamp(
-      (0.65 + windStrength * 0.5 + tsunamiPulse * (1.6 + i * 0.9) + swell * 0.15) *
+      (0.55 + windStrength * 0.4 + tsunamiPulse * (0.7 + i * 0.45) + swell * 0.12) *
         stormBoost *
         scale,
       0.25,
-      2.7,
+      1.85,
     );
 
     let waveLength = 16 + (1 - windStrength) * 10;
-    if (weather === 'tsunami') waveLength = 28 + i * 14;
-    else if (weather === 'tornado') waveLength = 12 + (1 - i) * 6;
+    if (weather === 'tsunami') waveLength = 32 + i * 12;
+    else if (weather === 'tornado') waveLength = 14 + (1 - i) * 6;
 
     return {
       ...ocean,
@@ -140,7 +142,7 @@ export class OceanSystem {
 
     const tsunami =
       ocean.tsunamiPulse > 0
-        ? Math.sin(along * k1 * 0.28 + t * 0.55) * H * 0.55 * ocean.tsunamiPulse
+        ? Math.sin(along * k1 * 0.22 + t * 0.48) * H * 0.32 * ocean.tsunamiPulse
         : 0;
 
     let vortex = 0;
