@@ -21,19 +21,27 @@ export class OceanSystem {
     weather: WeatherId,
     waveScale = 1,
     wind?: WindState,
+    intensity = 0.55,
   ): OceanState {
+    const i = clamp(intensity, 0, 1);
     const stormBoost =
       weather === 'hurricane'
-        ? 2.6
-        : weather === 'storm' || weather === 'lightning'
-          ? 1.85
-          : weather === 'rain'
-            ? 1.25
-            : 1;
+        ? 2.2 + i * 0.7
+        : weather === 'tornado'
+          ? 1.9 + i * 0.8
+          : weather === 'storm' || weather === 'lightning'
+            ? 1.55 + i * 0.5
+            : weather === 'rain'
+              ? 1.15 + i * 0.2
+              : weather === 'tsunami'
+                ? 1.35 + i * 0.45
+                : 1;
 
     let tsunamiPulse = ocean.tsunamiPulse;
     if (weather === 'tsunami') {
-      tsunamiPulse = Math.min(1, tsunamiPulse + dt * 0.35);
+      // Build a rolling pulse; intensity controls fill rate and ceiling.
+      const ceiling = 0.45 + i * 0.55;
+      tsunamiPulse = Math.min(ceiling, tsunamiPulse + dt * (0.22 + i * 0.35));
     } else {
       tsunamiPulse = Math.max(0, tsunamiPulse - dt * 0.5);
     }
@@ -45,13 +53,28 @@ export class OceanSystem {
 
     // Slow natural wander so seas never look perfectly periodic.
     const wander = 0.04 * Math.sin(ocean.time * 0.17) + 0.03 * Math.sin(ocean.time * 0.41 + 1.7);
-    const swell = clamp(0.4 + windStrength * 0.55 + tsunamiPulse * 0.55 + wander, 0.25, 1.35);
-    const chop = clamp((0.32 + windStrength * 0.55 + wander * 0.45) * stormBoost, 0.22, 1.45);
-    const baseHeight = clamp(
-      (0.65 + windStrength * 0.5 + tsunamiPulse * 1.8 + swell * 0.15) * stormBoost * scale,
+    const tornadoChop = weather === 'tornado' ? 0.2 + i * 0.45 : 0;
+    const swell = clamp(
+      0.4 + windStrength * 0.55 + tsunamiPulse * (0.55 + i * 0.5) + wander,
       0.25,
-      2.4,
+      1.55,
     );
+    const chop = clamp(
+      (0.32 + windStrength * 0.55 + wander * 0.45 + tornadoChop) * stormBoost,
+      0.22,
+      1.55,
+    );
+    const baseHeight = clamp(
+      (0.65 + windStrength * 0.5 + tsunamiPulse * (1.6 + i * 0.9) + swell * 0.15) *
+        stormBoost *
+        scale,
+      0.25,
+      2.7,
+    );
+
+    let waveLength = 16 + (1 - windStrength) * 10;
+    if (weather === 'tsunami') waveLength = 28 + i * 14;
+    else if (weather === 'tornado') waveLength = 12 + (1 - i) * 6;
 
     return {
       ...ocean,
@@ -62,15 +85,21 @@ export class OceanSystem {
       tsunamiPulse,
       windDirectionRad,
       windStrength,
-      waveLength: weather === 'tsunami' ? 34 : 16 + (1 - windStrength) * 10,
+      waveLength,
     };
   }
 
   /**
    * Multi-octave height sample (matches shader layers for buoyancy).
    * Primary swell travels with the wind; chop crosses it for a restless sea.
+   * Tornado adds a subtle vortex dip near (vortexX, vortexZ) when provided.
    */
-  sampleHeight(ocean: OceanState, x: number, z: number): number {
+  sampleHeight(
+    ocean: OceanState,
+    x: number,
+    z: number,
+    options?: { weather?: WeatherId; vortexX?: number; vortexZ?: number; intensity?: number },
+  ): number {
     const t = ocean.time;
     const dirX = Math.sin(ocean.windDirectionRad);
     const dirZ = Math.cos(ocean.windDirectionRad);
@@ -114,17 +143,51 @@ export class OceanSystem {
         ? Math.sin(along * k1 * 0.28 + t * 0.55) * H * 0.55 * ocean.tsunamiPulse
         : 0;
 
-    return swell + mid + micro + crest + tsunami;
+    let vortex = 0;
+    if (options?.weather === 'tornado' && options.vortexX !== undefined && options.vortexZ !== undefined) {
+      const i = clamp(options.intensity ?? 0.55, 0, 1);
+      const dx = x - options.vortexX;
+      const dz = z - options.vortexZ;
+      const dist = Math.hypot(dx, dz);
+      const radius = 8 + i * 10;
+      if (dist < radius) {
+        const falloff = 1 - dist / radius;
+        vortex =
+          Math.sin(dist * 0.9 - t * 3.2) * H * 0.22 * falloff * (0.5 + i) +
+          Math.sin(Math.atan2(dz, dx) * 3 + t * 4) * H * 0.08 * falloff;
+      }
+    }
+
+    return swell + mid + micro + crest + tsunami + vortex;
   }
 
-  sampleSlope(ocean: OceanState, x: number, z: number): { pitch: number; roll: number } {
+  sampleSlope(
+    ocean: OceanState,
+    x: number,
+    z: number,
+    options?: { weather?: WeatherId; vortexX?: number; vortexZ?: number; intensity?: number },
+  ): { pitch: number; roll: number } {
     const eps = 0.55;
-    const h = this.sampleHeight(ocean, x, z);
-    const hx = this.sampleHeight(ocean, x + eps, z);
-    const hz = this.sampleHeight(ocean, x, z + eps);
+    const h = this.sampleHeight(ocean, x, z, options);
+    const hx = this.sampleHeight(ocean, x + eps, z, options);
+    const hz = this.sampleHeight(ocean, x, z + eps, options);
     return {
       pitch: Math.atan2(hz - h, eps) * 0.72,
       roll: Math.atan2(hx - h, eps) * 0.72,
+    };
+  }
+
+  /** Lateral shove vector from a tsunami face (XZ). */
+  tsunamiShove(ocean: OceanState, intensity: number): { x: number; z: number; heel: number } {
+    if (ocean.tsunamiPulse <= 0.05) return { x: 0, z: 0, heel: 0 };
+    const i = clamp(intensity, 0, 1);
+    const dirX = Math.sin(ocean.windDirectionRad);
+    const dirZ = Math.cos(ocean.windDirectionRad);
+    const force = ocean.tsunamiPulse * (1.2 + i * 2.2);
+    return {
+      x: dirX * force,
+      z: dirZ * force,
+      heel: ocean.tsunamiPulse * (0.12 + i * 0.22) * Math.sin(ocean.time * 1.1),
     };
   }
 }

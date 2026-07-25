@@ -125,11 +125,36 @@ describe('WeatherSystem', () => {
     // Force a flash via many ticks with high chance
     let sawFlash = false;
     for (let i = 0; i < 80; i++) {
-      const tick = weather.update(state, { directionRad: 0, strength: 0.4 }, 0.25);
+      const tick = weather.update(state, { directionRad: 0, strength: 0.4 }, 0.25, 1);
       state = tick.weather;
       if (state.lightningFlash > 0.5) sawFlash = true;
     }
     expect(sawFlash).toBe(true);
+  });
+
+  it('spins tornado wind and scales with intensity', () => {
+    const weather = new WeatherSystem();
+    const state = weather.create('tornado');
+    const low = weather.update(state, { directionRad: 0, strength: 0.3 }, 0.5, 0.2);
+    const high = weather.update(state, { directionRad: 0, strength: 0.3 }, 0.5, 1);
+    expect(low.wind.directionRad).not.toBe(0);
+    expect(high.wind.directionRad).toBeGreaterThan(low.wind.directionRad);
+    expect(high.wind.strength).toBeGreaterThanOrEqual(low.wind.strength);
+    expect(high.weather.precipitation).toBeGreaterThan(low.weather.precipitation);
+  });
+
+  it('builds tsunami pulse stronger at high intensity', () => {
+    const ocean = new OceanSystem();
+    let mild = ocean.create();
+    let fierce = ocean.create();
+    for (let i = 0; i < 20; i++) {
+      mild = ocean.update(mild, 0.2, 'tsunami', 1, { directionRad: 0, strength: 0.5 }, 0.2);
+      fierce = ocean.update(fierce, 0.2, 'tsunami', 1, { directionRad: 0, strength: 0.5 }, 1);
+    }
+    expect(fierce.tsunamiPulse).toBeGreaterThan(mild.tsunamiPulse);
+    expect(fierce.swell).toBeGreaterThanOrEqual(mild.swell);
+    const shove = ocean.tsunamiShove(fierce, 1);
+    expect(Math.hypot(shove.x, shove.z)).toBeGreaterThan(0.5);
   });
 });
 

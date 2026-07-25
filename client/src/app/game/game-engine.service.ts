@@ -32,6 +32,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   graphicsQuality: 'high',
   masterVolume: 0.55,
   waveScale: 1,
+  weatherIntensity: 0.55,
   accessibility: {
     reduceMotion: false,
     highContrast: false,
@@ -83,6 +84,7 @@ export class GameEngineService {
     const settings = this.snapshot().settings;
     const fresh = this.createInitialSnapshot();
     this.voyageGrace = 12;
+    this.combatSys.damageFx.reset();
     this.snapshot.set({
       ...fresh,
       settings,
@@ -96,6 +98,7 @@ export class GameEngineService {
     const settings = this.snapshot().settings;
     const fresh = this.createInitialSnapshot();
     this.voyageGrace = 12;
+    this.combatSys.damageFx.reset();
     this.snapshot.set({ ...fresh, settings, phase: 'playing' });
   }
 
@@ -134,6 +137,12 @@ export class GameEngineService {
     this.audio.syncFromWeather();
   }
 
+  setWeatherIntensity(weatherIntensity: number): void {
+    this.patchSettings({
+      weatherIntensity: Math.max(0, Math.min(1, weatherIntensity)),
+    });
+  }
+
   setWind(directionRad: number, strength: number): void {
     const s = this.snapshot();
     this.snapshot.set({
@@ -162,15 +171,18 @@ export class GameEngineService {
   private tick(dt: number): void {
     const s = this.snapshot();
 
+    const intensity = s.settings.weatherIntensity;
+
     // Keep seas alive on menus / pause so the water never looks frozen.
     if (s.phase !== 'playing') {
-      const weatherTick = this.weatherSys.update(s.weather, s.wind, dt);
+      const weatherTick = this.weatherSys.update(s.weather, s.wind, dt, intensity);
       const ocean = this.oceanSys.update(
         s.ocean,
         dt,
         weatherTick.weather.id,
         s.settings.waveScale,
         weatherTick.wind,
+        intensity,
       );
       this.snapshot.set({
         ...s,
@@ -184,13 +196,14 @@ export class GameEngineService {
     this.voyageGrace = Math.max(0, this.voyageGrace - dt);
     const inGrace = this.voyageGrace > 0;
 
-    const weatherTick = this.weatherSys.update(s.weather, s.wind, dt);
+    const weatherTick = this.weatherSys.update(s.weather, s.wind, dt, intensity);
     const ocean = this.oceanSys.update(
       s.ocean,
       dt,
       weatherTick.weather.id,
       s.settings.waveScale,
       weatherTick.wind,
+      intensity,
     );
 
     let controls = s.controls;
@@ -199,6 +212,50 @@ export class GameEngineService {
 
     let player = this.physicsSys.update(s.player, controls, weatherTick.wind, ocean, dt);
     let aiShips = this.aiSys.update(s.aiShips, player, weatherTick.wind, ocean, dt);
+
+    // Tsunami shove — lateral push and heel without instant kills during grace.
+    if (weatherTick.weather.id === 'tsunami' && ocean.tsunamiPulse > 0.08) {
+      const shove = this.oceanSys.tsunamiShove(ocean, intensity);
+      const stress = inGrace ? 0.35 : 1;
+      player = {
+        ...player,
+        heel: player.heel + shove.heel * stress,
+        position: {
+          x: player.position.x + shove.x * dt * 2.4 * stress,
+          y: player.position.y,
+          z: player.position.z + shove.z * dt * 2.4 * stress,
+        },
+      };
+      aiShips = aiShips.map((ai) => ({
+        ...ai,
+        ship: {
+          ...ai.ship,
+          heel: ai.ship.heel + shove.heel * 0.85 * stress,
+          position: {
+            x: ai.ship.position.x + shove.x * dt * 2.1 * stress,
+            y: ai.ship.position.y,
+            z: ai.ship.position.z + shove.z * dt * 2.1 * stress,
+          },
+        },
+      }));
+      // Light weather stress on sails at high intensity (not during grace).
+      if (!inGrace && intensity > 0.7 && ocean.tsunamiPulse > 0.55) {
+        player = {
+          ...player,
+          sailIntegrity: Math.max(0.2, player.sailIntegrity - dt * 0.01 * intensity),
+        };
+      }
+    }
+
+    // Tornado gust heel / spin stress
+    if (weatherTick.weather.id === 'tornado' && !inGrace) {
+      const spinHeel = Math.sin(ocean.time * 3.5) * (0.08 + intensity * 0.18);
+      player = {
+        ...player,
+        heel: player.heel + spinHeel * dt * 4,
+        sailIntegrity: Math.max(0.2, player.sailIntegrity - dt * 0.008 * intensity),
+      };
+    }
 
     // Hull collisions after movement (no hull damage during voyage grace)
     const collided = this.collisionSys.resolveShips(player, aiShips, {
@@ -263,6 +320,19 @@ export class GameEngineService {
     }
     if (ballTick.waterSplashes.length) {
       this.audio.playImpact(0.25);
+    }
+
+    // Structural ruptures when hull bands cross or heavy rams land.
+    const structureFx = this.combatSys.damageFx.syncFleet(
+      player,
+      aiShips,
+      inGrace ? [] : collided.events,
+    );
+    if (structureFx.length) {
+      shotVisuals = [...shotVisuals, ...structureFx];
+      if (structureFx.some((v) => v.kind === 'explosion' || v.kind === 'rupture')) {
+        this.audio.playImpact(0.95);
+      }
     }
 
     const crew = this.crewSys.tickMorale(s.crew, player.hullIntegrity, dt);

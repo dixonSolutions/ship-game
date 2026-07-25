@@ -1,4 +1,5 @@
 import { AI_HULL_RADIUS, CollisionSystem, PLAYER_HULL_RADIUS } from './collision.system';
+import { DamageFxSystem } from './damage-fx.system';
 import type {
   AiShipState,
   Projectile,
@@ -34,6 +35,7 @@ export class CombatSystem {
   private reloadTimer = 0;
   private shotId = 0;
   private readonly collisions = new CollisionSystem();
+  readonly damageFx = new DamageFxSystem();
 
   getReloadRemaining(): number {
     return this.reloadTimer;
@@ -197,6 +199,7 @@ export class CombatSystem {
           hits.push({ targetId: 'player', damage, position: pos });
           alive = false;
           nextVisuals.push(this.impactVisual(ball.id, pos));
+          nextVisuals.push(...this.damageFx.spawnExplosion(pos, 1.05, 'player'));
         }
       }
 
@@ -211,6 +214,7 @@ export class CombatSystem {
           nextAi[i] = { ...ai, ship: this.applyDamage(ai.ship, damage) };
           alive = false;
           nextVisuals.push(this.impactVisual(ball.id, pos));
+          nextVisuals.push(...this.damageFx.spawnExplosion(pos, 1.2, ai.id));
           break;
         }
       }
@@ -228,9 +232,10 @@ export class CombatSystem {
       }
     }
 
+    const withDebris = this.damageFx.tickDebris(nextVisuals, dt);
     return {
       projectiles: nextBalls,
-      visuals: this.ageVisuals(nextVisuals, dt),
+      visuals: this.ageVisuals(withDebris, dt),
       player: nextPlayer,
       aiShips: nextAi,
       hits,

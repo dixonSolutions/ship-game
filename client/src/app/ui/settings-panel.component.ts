@@ -52,6 +52,17 @@ import type { GraphicsQuality, WeatherId } from '../systems/types';
         </label>
 
         <label>
+          Weather intensity
+          <p-slider
+            [(ngModel)]="weatherIntensity"
+            [min]="0"
+            [max]="1"
+            [step]="0.05"
+            (onChange)="onWeatherIntensity()"
+          />
+        </label>
+
+        <label>
           Graphics
           <p-select
             [options]="graphicsOptions"
@@ -139,6 +150,7 @@ export class SettingsPanelComponent {
   waveScale = this.engine.snapshot().settings.waveScale;
   timeOfDay = this.engine.snapshot().timeOfDay;
   weather: WeatherId = this.engine.snapshot().weather.id;
+  weatherIntensity = this.engine.snapshot().settings.weatherIntensity;
   graphics: GraphicsQuality = this.engine.snapshot().settings.graphicsQuality;
   reduceMotion = this.engine.snapshot().settings.accessibility.reduceMotion;
   highContrast = this.engine.snapshot().settings.accessibility.highContrast;
@@ -152,6 +164,7 @@ export class SettingsPanelComponent {
     { label: 'Lightning', value: 'lightning' },
     { label: 'Hurricane', value: 'hurricane' },
     { label: 'Tsunami', value: 'tsunami' },
+    { label: 'Tornado', value: 'tornado' },
   ];
 
   readonly graphicsOptions: { label: string; value: GraphicsQuality }[] = [
@@ -180,6 +193,10 @@ export class SettingsPanelComponent {
 
   onWeather(): void {
     this.engine.setWeather(this.weather);
+  }
+
+  onWeatherIntensity(): void {
+    this.engine.setWeatherIntensity(this.weatherIntensity);
   }
 
   onGraphics(): void {

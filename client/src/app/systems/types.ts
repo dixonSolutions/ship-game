@@ -5,7 +5,8 @@ export type WeatherId =
   | 'fog'
   | 'lightning'
   | 'hurricane'
-  | 'tsunami';
+  | 'tsunami'
+  | 'tornado';
 
 export type CombatState = 'peaceful' | 'skirmish' | 'battle' | 'sinking';
 
@@ -106,15 +107,32 @@ export interface Projectile {
   alive: boolean;
 }
 
+export type ShotVisualKind =
+  | 'cannon'
+  | 'impact'
+  | 'smoke'
+  | 'ball'
+  | 'splash'
+  | 'explosion'
+  | 'rupture'
+  | 'debris'
+  | 'sinkSmoke';
+
 export interface ShotVisual {
   id: string;
   origin: Vec3;
   target: Vec3;
   age: number;
   lifetime: number;
-  kind: 'cannon' | 'impact' | 'smoke' | 'ball' | 'splash';
+  kind: ShotVisualKind;
   /** When kind === 'ball', tracks the live projectile id. */
   projectileId?: string;
+  /** Optional debris / shard velocity in world space. */
+  velocity?: Vec3;
+  /** Optional linked ship for structural FX. */
+  shipId?: string;
+  /** Visual scale multiplier (explosions / ruptures). */
+  scale?: number;
 }
 
 export interface AccessibilitySettings {
@@ -126,6 +144,8 @@ export interface GameSettings {
   graphicsQuality: GraphicsQuality;
   masterVolume: number;
   waveScale: number;
+  /** 0–1 severity scale for weather systems (default ~0.55). */
+  weatherIntensity: number;
   accessibility: AccessibilitySettings;
   /** Show collision radii and projectile helpers. */
   debugPhysics: boolean;

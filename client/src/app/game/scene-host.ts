@@ -16,12 +16,15 @@ interface ShipVisual {
   root: THREE.Group;
   hull: THREE.Mesh;
   sail: THREE.Mesh;
+  mast: THREE.Mesh;
+  yard: THREE.Mesh;
   rudder: THREE.Mesh;
   wake: THREE.Points;
   crew: THREE.Group[];
   damageLight: THREE.PointLight;
   debugRing: THREE.Line;
   accentMeshes: THREE.Mesh[];
+  ruptureCracks: THREE.Mesh[];
 }
 
 /** Full-bleed Three.js ocean scene with procedural ships, weather, and FX. */
@@ -63,6 +66,8 @@ export class SceneHost implements AfterViewInit, OnDestroy {
   private rain?: THREE.Points;
   private spray?: THREE.Points;
   private lightningBolt?: THREE.Mesh;
+  private tornadoFunnel?: THREE.Mesh;
+  private tornadoDebris?: THREE.Points;
   private shotMeshes = new Map<string, THREE.Object3D>();
   private aimLine?: THREE.Line;
   private debugPaths = new Map<string, THREE.Line>();
@@ -317,6 +322,45 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     bolt.visible = false;
     scene.add(bolt);
 
+    // Lightweight tornado funnel (cone) + orbiting debris dust.
+    const funnel = new THREE.Mesh(
+      new THREE.ConeGeometry(3.2, 18, 16, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0x6a6358,
+        transparent: true,
+        opacity: 0.28,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    funnel.position.y = 9;
+    funnel.visible = false;
+    scene.add(funnel);
+
+    const debrisCount = 48;
+    const debrisGeo = new THREE.BufferGeometry();
+    const debrisPos = new Float32Array(debrisCount * 3);
+    for (let i = 0; i < debrisCount; i++) {
+      const a = (i / debrisCount) * Math.PI * 2;
+      const r = 1.2 + (i % 5) * 0.45;
+      debrisPos[i * 3] = Math.cos(a) * r;
+      debrisPos[i * 3 + 1] = 1 + (i % 7) * 1.6;
+      debrisPos[i * 3 + 2] = Math.sin(a) * r;
+    }
+    debrisGeo.setAttribute('position', new THREE.BufferAttribute(debrisPos, 3));
+    const tornadoDebris = new THREE.Points(
+      debrisGeo,
+      new THREE.PointsMaterial({
+        color: 0xb9a88a,
+        size: 0.22,
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false,
+      }),
+    );
+    tornadoDebris.visible = false;
+    scene.add(tornadoDebris);
+
     const aimGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(),
       new THREE.Vector3(0, 0, -20),
@@ -339,6 +383,8 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     this.rain = rain;
     this.spray = spray;
     this.lightningBolt = bolt;
+    this.tornadoFunnel = funnel;
+    this.tornadoDebris = tornadoDebris;
     this.aimLine = aimLine;
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -478,6 +524,22 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     figurehead.position.set(0, 0.85, 4.35);
     const accentMeshes = [stripe, figurehead];
 
+    // Scar / crack overlays that reveal as hull integrity drops.
+    const ruptureCracks: THREE.Mesh[] = [];
+    const crackMat = new THREE.MeshBasicMaterial({
+      color: 0x1a0c08,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    for (let i = 0; i < 3; i++) {
+      const crack = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35 + i * 0.1, 1.4 + i * 0.4), crackMat.clone());
+      crack.position.set((i - 1) * 0.55, 0.75, 0.2 - i * 0.35);
+      crack.rotation.z = (i - 1) * 0.35;
+      root.add(crack);
+      ruptureCracks.push(crack);
+    }
+
     root.add(hull, bilge, bow, stern, deck, gunwaleL, gunwaleR, mast, yard, sail, rudder, stripe, figurehead);
 
     const wakeGeo = new THREE.BufferGeometry();
@@ -522,7 +584,20 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       }
     }
 
-    return { root, hull, sail, rudder, wake, crew, damageLight, debugRing, accentMeshes };
+    return {
+      root,
+      hull,
+      sail,
+      mast,
+      yard,
+      rudder,
+      wake,
+      crew,
+      damageLight,
+      debugRing,
+      accentMeshes,
+      ruptureCracks,
+    };
   }
 
   private createCrewFigure(): THREE.Group {
@@ -559,11 +634,49 @@ export class SceneHost implements AfterViewInit, OnDestroy {
 
     this.animateRain(snap, dt);
     this.animateSpray(snap, dt);
+    this.animateTornado(snap, dt);
     this.animateWake(this.playerVisual, snap.player.speed);
     for (const ai of snap.aiShips) {
       this.animateWake(this.aiVisuals.get(ai.id), ai.ship.speed);
     }
     this.syncShots(snap.shotVisuals, snap.settings.debugPhysics);
+  }
+
+  private animateTornado(snap: GameSnapshot, dt: number): void {
+    if (!this.tornadoFunnel || !this.tornadoDebris) return;
+    const active = snap.weather.id === 'tornado';
+    const reduce = snap.settings.accessibility.reduceMotion;
+    const intensity = snap.settings.weatherIntensity;
+    this.tornadoFunnel.visible = active && !reduce;
+    this.tornadoDebris.visible = active && snap.settings.graphicsQuality !== 'low';
+    if (!active) return;
+
+    const offset = 14 + (1 - intensity) * 10;
+    const orbit = snap.ocean.time * (0.35 + intensity * 0.9);
+    const x = snap.player.position.x + Math.cos(orbit) * offset;
+    const z = snap.player.position.z + Math.sin(orbit) * offset;
+    this.tornadoFunnel.position.set(x, 9 + Math.sin(snap.ocean.time * 2) * 0.4, z);
+    this.tornadoFunnel.rotation.y += dt * (1.8 + intensity * 2.5);
+    const mat = this.tornadoFunnel.material as THREE.MeshBasicMaterial;
+    mat.opacity = 0.18 + intensity * 0.28;
+    this.tornadoFunnel.scale.set(
+      0.85 + intensity * 0.55,
+      0.9 + intensity * 0.35,
+      0.85 + intensity * 0.55,
+    );
+
+    this.tornadoDebris.position.set(x, 0, z);
+    this.tornadoDebris.rotation.y += dt * (2.5 + intensity * 3);
+    const pos = this.tornadoDebris.geometry.attributes['position'] as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i) + dt * (2 + intensity * 4);
+      pos.setY(i, y > 16 ? 0.5 + Math.random() * 2 : y);
+      const r = 1.1 + (i % 5) * (0.4 + intensity * 0.35);
+      const a = (i / pos.count) * Math.PI * 2 + snap.ocean.time * 2;
+      pos.setX(i, Math.cos(a) * r);
+      pos.setZ(i, Math.sin(a) * r);
+    }
+    pos.needsUpdate = true;
   }
 
   private animateRain(snap: GameSnapshot, dt: number): void {
@@ -700,16 +813,39 @@ export class SceneHost implements AfterViewInit, OnDestroy {
 
     const skyMat = this.sky.material as THREE.ShaderMaterial;
     const night = sunHeight < 0;
-    skyMat.uniforms['uTop']!.value.set(night ? 0x0b1830 : 0x87b7e0);
-    skyMat.uniforms['uHorizon']!.value.set(night ? 0x24364f : 0xd7e6f2);
-    skyMat.uniforms['uBottom']!.value.set(night ? 0x0a1622 : 0x1d3a4d);
+    const severe = snap.weather.id === 'tornado' || snap.weather.id === 'tsunami' || snap.weather.id === 'hurricane';
+    const intensity = snap.settings.weatherIntensity;
+    if (snap.weather.id === 'tornado') {
+      skyMat.uniforms['uTop']!.value.set(0x2a2e34);
+      skyMat.uniforms['uHorizon']!.value.set(0x5a5040);
+      skyMat.uniforms['uBottom']!.value.set(0x1a2218);
+      this.sun.intensity *= 0.55;
+      this.hemi.intensity *= 0.7;
+    } else if (snap.weather.id === 'tsunami') {
+      skyMat.uniforms['uTop']!.value.set(night ? 0x0b1830 : 0x4a6a7a);
+      skyMat.uniforms['uHorizon']!.value.set(night ? 0x24364f : 0x9eb0b8);
+      skyMat.uniforms['uBottom']!.value.set(night ? 0x0a1622 : 0x163040);
+    } else {
+      skyMat.uniforms['uTop']!.value.set(night ? 0x0b1830 : 0x87b7e0);
+      skyMat.uniforms['uHorizon']!.value.set(night ? 0x24364f : 0xd7e6f2);
+      skyMat.uniforms['uBottom']!.value.set(night ? 0x0a1622 : 0x1d3a4d);
+    }
     skyMat.uniforms['uFlash']!.value = snap.weather.lightningFlash;
+
+    if (this.oceanMaterial && snap.weather.id === 'tsunami') {
+      this.oceanMaterial.uniforms['uWaveHeight']!.value =
+        snap.ocean.waveHeight * (1 + snap.ocean.tsunamiPulse * (0.35 + intensity * 0.4));
+    }
 
     if (this.scene.fog instanceof THREE.FogExp2) {
       const fogBoost = snap.settings.accessibility.highContrast ? 0.6 : 1;
+      const severeFog = severe ? 1 + intensity * 0.35 : 1;
       // Keep density modest so wind chop and foam still read in storms/fog.
-      this.scene.fog.density = (0.004 + (1 - snap.weather.visibility) * 0.022) * fogBoost;
-      this.scene.fog.color.set(night ? 0x1a2738 : 0x4d6f82);
+      this.scene.fog.density =
+        (0.004 + (1 - snap.weather.visibility) * 0.022) * fogBoost * severeFog;
+      this.scene.fog.color.set(
+        snap.weather.id === 'tornado' ? 0x3a3830 : night ? 0x1a2738 : 0x4d6f82,
+      );
     }
 
     // Lightning bolt
@@ -776,12 +912,54 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     visual.root.rotation.y = ship.heading;
     visual.root.rotation.z = -ship.heel;
     visual.root.rotation.x = ship.pitch;
-    visual.sail.scale.set(0.35 + sailTrim * 0.75, 0.45 + sailTrim * 0.7, 1);
+
+    const sailHealth = clamp01(ship.sailIntegrity);
+    const hullHealth = clamp01(ship.hullIntegrity);
+    const damage = 1 - hullHealth;
+
+    visual.sail.scale.set(
+      (0.35 + sailTrim * 0.75) * (0.35 + sailHealth * 0.65),
+      (0.45 + sailTrim * 0.7) * (0.4 + sailHealth * 0.6),
+      1,
+    );
     visual.sail.rotation.y = Math.sin(sailTrim * Math.PI) * 0.25;
+    visual.sail.rotation.z = (1 - sailHealth) * 0.55;
+    visual.sail.visible = sailHealth > 0.12 || ship.sinkProgress < 0.4;
+    const sailMat = visual.sail.material as THREE.MeshStandardMaterial;
+    sailMat.opacity = 0.35 + sailHealth * 0.65;
+    sailMat.transparent = sailHealth < 0.85;
+    sailMat.color.setRGB(0.95 - (1 - sailHealth) * 0.25, 0.93 - (1 - sailHealth) * 0.3, 0.89);
+
+    // Mast / yard list and snap as structure fails.
+    visual.mast.rotation.z = damage * 0.35 + (ship.sinkProgress > 0 ? ship.sinkProgress * 0.8 : 0);
+    visual.mast.rotation.x = ship.sinkProgress * 0.45;
+    visual.yard.rotation.y = damage * 0.4;
+    visual.yard.position.y = 4.4 - damage * 0.6;
+    if (hullHealth <= 0) {
+      visual.mast.scale.set(1, Math.max(0.15, 1 - ship.sinkProgress), 1);
+      visual.yard.visible = ship.sinkProgress < 0.55;
+    } else {
+      visual.mast.scale.set(1, 1, 1);
+      visual.yard.visible = true;
+    }
+
     visual.rudder.rotation.y = rudder * 0.55;
-    visual.damageLight.intensity = (1 - ship.hullIntegrity) * 2.2;
+    visual.damageLight.intensity = damage * 2.8 + (hullHealth <= 0 ? 1.5 : 0);
+    visual.damageLight.color.setHex(hullHealth <= 0.3 ? 0xff4a1a : 0xff6a3d);
+
     const hullMat = visual.hull.material as THREE.MeshStandardMaterial;
-    hullMat.emissive = new THREE.Color(0x331108).multiplyScalar((1 - ship.hullIntegrity) * 0.45);
+    hullMat.color.setRGB(0.42 - damage * 0.22, 0.28 - damage * 0.14, 0.16 - damage * 0.08);
+    hullMat.emissive = new THREE.Color(0x331108).multiplyScalar(damage * 0.55);
+    hullMat.roughness = 0.72 + damage * 0.22;
+
+    visual.ruptureCracks.forEach((crack, i) => {
+      const threshold = 0.75 - i * 0.22;
+      const show = hullHealth < threshold;
+      const mat = crack.material as THREE.MeshBasicMaterial;
+      mat.opacity = show ? Math.min(0.95, (threshold - hullHealth) * 2.2) : 0;
+      crack.visible = show;
+    });
+
     visual.debugRing.visible = debugPhysics;
   }
 
@@ -823,10 +1001,14 @@ export class SceneHost implements AfterViewInit, OnDestroy {
             new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.85, roughness: 0.25 }),
           );
           obj.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
-        } else if (shot.kind === 'smoke') {
+        } else if (shot.kind === 'smoke' || shot.kind === 'sinkSmoke') {
           obj = new THREE.Mesh(
-            new THREE.SphereGeometry(0.4, 8, 8),
-            new THREE.MeshBasicMaterial({ color: 0xbbbbbb, transparent: true, opacity: 0.45 }),
+            new THREE.SphereGeometry(0.45, 8, 8),
+            new THREE.MeshBasicMaterial({
+              color: shot.kind === 'sinkSmoke' ? 0x555555 : 0xbbbbbb,
+              transparent: true,
+              opacity: 0.45,
+            }),
           );
           obj.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
         } else if (shot.kind === 'splash') {
@@ -837,6 +1019,45 @@ export class SceneHost implements AfterViewInit, OnDestroy {
               transparent: true,
               opacity: 0.7,
               map: this.foamMap ?? null,
+            }),
+          );
+          obj.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
+        } else if (shot.kind === 'explosion') {
+          obj = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5, 10, 10),
+            new THREE.MeshBasicMaterial({
+              color: 0xff7a28,
+              transparent: true,
+              opacity: 0.95,
+            }),
+          );
+          obj.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
+        } else if (shot.kind === 'rupture') {
+          const g = new THREE.Group();
+          for (let i = 0; i < 5; i++) {
+            const shard = new THREE.Mesh(
+              new THREE.BoxGeometry(0.12, 0.08, 0.45),
+              new THREE.MeshStandardMaterial({
+                color: 0x5a3a22,
+                map: this.woodMap ?? null,
+                roughness: 0.9,
+              }),
+            );
+            shard.position.set((i - 2) * 0.15, Math.random() * 0.2, (Math.random() - 0.5) * 0.3);
+            shard.rotation.set(Math.random(), Math.random(), Math.random());
+            g.add(shard);
+          }
+          const spark = new THREE.PointLight(0xffaa44, 1.8, 6);
+          g.add(spark);
+          g.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
+          obj = g;
+        } else if (shot.kind === 'debris') {
+          obj = new THREE.Mesh(
+            new THREE.BoxGeometry(0.18, 0.1, 0.35),
+            new THREE.MeshStandardMaterial({
+              color: 0x6b4a2e,
+              map: this.woodMap ?? null,
+              roughness: 0.92,
             }),
           );
           obj.position.set(shot.origin.x, shot.origin.y, shot.origin.z);
@@ -861,6 +1082,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       }
 
       const life = 1 - shot.age / shot.lifetime;
+      const baseScale = shot.scale ?? 1;
       if (shot.kind === 'ball') {
         obj.position.set(shot.target.x, shot.target.y, shot.target.z);
         if (debugPhysics) {
@@ -881,28 +1103,70 @@ export class SceneHost implements AfterViewInit, OnDestroy {
             pos.needsUpdate = true;
           }
         }
-      } else if (shot.kind === 'smoke' || shot.kind === 'impact' || shot.kind === 'splash') {
+      } else if (
+        shot.kind === 'smoke' ||
+        shot.kind === 'sinkSmoke' ||
+        shot.kind === 'impact' ||
+        shot.kind === 'splash' ||
+        shot.kind === 'explosion'
+      ) {
         const mesh = obj as THREE.Mesh;
         const mat = mesh.material as THREE.MeshBasicMaterial | THREE.MeshStandardMaterial;
         if ('opacity' in mat) {
           mat.transparent = true;
           mat.opacity =
             life *
-            (shot.kind === 'impact' ? 0.85 : shot.kind === 'splash' ? 0.65 : 0.4);
+            (shot.kind === 'explosion'
+              ? 0.95
+              : shot.kind === 'impact'
+                ? 0.85
+                : shot.kind === 'splash'
+                  ? 0.65
+                  : shot.kind === 'sinkSmoke'
+                    ? 0.5
+                    : 0.4);
+        }
+        if (shot.kind === 'explosion' && 'color' in mat) {
+          mat.color.setHex(life > 0.6 ? 0xfff0c0 : life > 0.3 ? 0xff7a28 : 0x553320);
         }
         const s =
-          shot.kind === 'impact'
-            ? 1 + shot.age * 2.5
-            : shot.kind === 'splash'
-              ? 1 + shot.age * 3.2
-              : 1 + shot.age * 1.4;
+          shot.kind === 'explosion'
+            ? (0.6 + shot.age * 4.5) * baseScale
+            : shot.kind === 'impact'
+              ? 1 + shot.age * 2.5
+              : shot.kind === 'splash'
+                ? 1 + shot.age * 3.2
+                : (1 + shot.age * 1.4) * baseScale;
         mesh.scale.setScalar(s);
+        mesh.position.set(shot.target.x, shot.target.y + (shot.kind === 'sinkSmoke' ? shot.age * 1.2 : 0), shot.target.z);
         if (shot.kind === 'splash') {
           mesh.position.y = shot.origin.y + shot.age * 0.8;
         }
-      } else {
+      } else if (shot.kind === 'debris') {
+        const mesh = obj as THREE.Mesh;
+        mesh.position.set(shot.target.x, shot.target.y, shot.target.z);
+        mesh.rotation.x += 0.08;
+        mesh.rotation.z += 0.11;
+        mesh.scale.setScalar(baseScale * (0.7 + life * 0.3));
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        mat.opacity = Math.min(1, life + 0.2);
+        mat.transparent = true;
+      } else if (shot.kind === 'rupture') {
+        obj.position.set(shot.target.x, shot.target.y, shot.target.z);
+        obj.scale.setScalar(baseScale * (1 + shot.age * 1.2));
+        obj.traverse((child) => {
+          if (child instanceof THREE.PointLight) {
+            child.intensity = life * 2.2;
+          }
+        });
+      } else if (shot.kind === 'cannon') {
         const line = obj as THREE.Line;
         (line.material as THREE.LineBasicMaterial).opacity = life;
+      } else {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.material && 'opacity' in (mesh.material as THREE.Material)) {
+          (mesh.material as THREE.MeshBasicMaterial).opacity = life;
+        }
       }
     }
 
@@ -935,4 +1199,8 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
   }
+}
+
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v));
 }
