@@ -57,14 +57,11 @@ CI workflow **Main CI — QuakeC + Flatpak Pages remote** (`.github/workflows/ma
 
 1. Compiles QuakeC with fteqcc  
 2. Builds Flatpak `com.dixonsolutions.ShipGame`  
-3. Publishes an unsigned OSTree archive repo to GitHub Pages  
+3. Publishes an unsigned OSTree archive repo to GitHub Pages (Actions source)
 
-Install (after Pages deploy; enable **Settings → Pages → Source: GitHub Actions**):
+Install after a green CI deploy:
 
 ```bash
-# URL pattern:
-# https://<owner>.github.io/ship-game/shipgame.flatpakrepo
-
 flatpak remote-add --if-not-exists shipgame \
   https://dixonsolutions.github.io/ship-game/shipgame.flatpakrepo
 flatpak install shipgame com.dixonsolutions.ShipGame
