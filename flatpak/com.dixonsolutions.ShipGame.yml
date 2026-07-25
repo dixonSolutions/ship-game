@@ -35,13 +35,23 @@ modules:
         branch: master
 
   # Free Quake-compatible id1 (pak0/pak1) — required by DarkPlaces menu/gfx check
+  # flatpak-builder strips the zip's top-level "lite/" directory.
   - name: librequake-id1
     buildsystem: simple
     build-commands:
-      - install -d /app/share/ship-game/darkplaces/id1
-      - cp -a lite/id1/. /app/share/ship-game/darkplaces/id1/
-      - test -f /app/share/ship-game/darkplaces/id1/pak0.pak
-      - test -f /app/share/ship-game/darkplaces/id1/pak1.pak
+      - |
+        set -e
+        install -d /app/share/ship-game/darkplaces/id1
+        if [ -d id1 ]; then
+          SRC=id1
+        elif [ -d lite/id1 ]; then
+          SRC=lite/id1
+        else
+          echo "LibreQuake id1 not found after extract:"; find . -maxdepth 3 -type d; exit 1
+        fi
+        cp -a "$SRC"/. /app/share/ship-game/darkplaces/id1/
+        test -f /app/share/ship-game/darkplaces/id1/pak0.pak
+        test -f /app/share/ship-game/darkplaces/id1/pak1.pak
     sources:
       - type: archive
         url: https://github.com/lavenderdotpet/LibreQuake/releases/download/v0.09-beta/lite.zip
