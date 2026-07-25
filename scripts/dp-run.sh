@@ -23,9 +23,13 @@ if [[ -z "${BIN}" ]]; then
   exit 1
 fi
 
-if [[ ! -d "$BASE/id1" ]]; then
-  echo "error: missing free stub basedir: $BASE/id1" >&2
-  echo "DarkPlaces requires an id1 gamedir next to shipgame (empty stub is OK)." >&2
+if [[ ! -f "$BASE/id1/pak0.pak" ]]; then
+  echo "[dp-run] missing free LibreQuake id1 data — fetching…" >&2
+  bash "$ROOT/scripts/dp-fetch-librequake.sh"
+fi
+if [[ ! -f "$BASE/id1/pak0.pak" ]]; then
+  echo "error: DarkPlaces needs $BASE/id1/pak0.pak (LibreQuake)." >&2
+  echo "Run: ./scripts/dp-fetch-librequake.sh" >&2
   exit 1
 fi
 if [[ ! -f "$BASE/$GAME/maps/start.bsp" ]]; then

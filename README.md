@@ -8,9 +8,10 @@ Immersive sailing combat game.
 ## Quick start (DarkPlaces / QuakeC)
 
 ```bash
-./scripts/qc-build.sh          # compile QuakeC → progs.dat (needs fteqcc)
-./scripts/dp-build-engine.sh   # optional: build DarkPlaces (needs SDL2)
-./scripts/dp-run.sh ocean1     # run free ocean arena map
+./scripts/qc-build.sh              # compile QuakeC → progs.dat (needs fteqcc)
+./scripts/dp-build-engine.sh       # optional: build DarkPlaces (needs SDL2)
+./scripts/dp-fetch-librequake.sh   # free id1 paks (required by DarkPlaces)
+./scripts/dp-run.sh ocean1         # run free ocean arena map
 ```
 
 ## Flatpak install

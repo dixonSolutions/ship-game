@@ -1,6 +1,6 @@
 # Flatpak manifest — DarkPlaces engine + free Ship Game QuakeC gamedir
 # App ID: com.dixonsolutions.ShipGame
-# Does NOT ship proprietary Quake pak files.
+# Free game data via LibreQuake (NOT proprietary id Software Quake paks).
 app-id: com.dixonsolutions.ShipGame
 runtime: org.freedesktop.Platform
 runtime-version: '24.08'
@@ -34,14 +34,29 @@ modules:
         url: https://github.com/darkplacesengine/darkplaces.git
         branch: master
 
-  - name: shipgame-data
+  # Free Quake-compatible id1 (pak0/pak1) — required by DarkPlaces menu/gfx check
+  - name: librequake-id1
     buildsystem: simple
     build-commands:
       - install -d /app/share/ship-game/darkplaces/id1
-      - install -Dm644 id1/README.md /app/share/ship-game/darkplaces/id1/README.md
+      - cp -a lite/id1/. /app/share/ship-game/darkplaces/id1/
+      - test -f /app/share/ship-game/darkplaces/id1/pak0.pak
+      - test -f /app/share/ship-game/darkplaces/id1/pak1.pak
+    sources:
+      - type: archive
+        url: https://github.com/lavenderdotpet/LibreQuake/releases/download/v0.09-beta/lite.zip
+        sha256: 428e736b2f01d953e09a08c60bee975bdc4a0ac2219e97fa095c8af41754da83
+
+  - name: shipgame-data
+    buildsystem: simple
+    build-commands:
+      - install -d /app/share/ship-game/darkplaces
       - cp -a shipgame /app/share/ship-game/darkplaces/
-      # Safety: default engine map name is "start"
+      # Overlay stub README / free gfx helpers (LibreQuake already populated id1)
+      - install -Dm644 id1/README.md /app/share/ship-game/darkplaces/id1/README.md
+      - if [ -d id1/gfx ]; then cp -a id1/gfx /app/share/ship-game/darkplaces/id1/; fi
       - test -f /app/share/ship-game/darkplaces/shipgame/maps/start.bsp
+      - test -f /app/share/ship-game/darkplaces/id1/pak0.pak
       - install -Dm755 ship-game.sh /app/bin/ship-game
       - install -Dm644 com.dixonsolutions.ShipGame.desktop /app/share/applications/com.dixonsolutions.ShipGame.desktop
       - install -Dm644 com.dixonsolutions.ShipGame.metainfo.xml /app/share/metainfo/com.dixonsolutions.ShipGame.metainfo.xml

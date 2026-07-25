@@ -62,3 +62,10 @@ client/public/assets/audio/manifest.json
 # Local browser / tooling state
 browseros.db
 *.db-journal
+
+# LibreQuake free id1 data (fetched by scripts/dp-fetch-librequake.sh / Flatpak CI)
+darkplaces/id1/**/*.pak
+darkplaces/id1/music/
+darkplaces/id1/docs/
+darkplaces/id1/*.cfg
+darkplaces/id1/accessibility.txt

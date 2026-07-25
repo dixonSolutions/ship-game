@@ -14,9 +14,9 @@
       hull collisions, and AI ships.
     </p>
     <p>
-      This Flatpak ships only free assets and the engine. It does not redistribute
-      proprietary Quake pak files. Optional Quake shareware id1 content can be
-      provided by the user for extra stock maps.
+      This Flatpak ships the DarkPlaces engine, the Ship Game QuakeC mod, and
+      free LibreQuake id1 data (pak0/pak1). It does not redistribute proprietary
+      id Software Quake pak files.
     </p>
   </description>
   <launchable type="desktop-id">com.dixonsolutions.ShipGame.desktop</launchable>
@@ -29,6 +29,11 @@
   </screenshots>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="0.2.1" date="2026-07-25">
+      <description>
+        <p>Bundle LibreQuake free id1 data so DarkPlaces no longer shows the required-files / basedir dialog.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-07-25" />
   </releases>
 </component>

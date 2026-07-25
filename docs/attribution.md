@@ -36,6 +36,13 @@ Released into the public domain (CC0) for use in this game.
 
 No commercial textures are bundled. Generated ElevenLabs audio is produced at runtime and not redistributed in the repo.
 
+## DarkPlaces / LibreQuake
+
+| Asset | License | Use |
+| --- | --- | --- |
+| [DarkPlaces](https://github.com/darkplacesengine/darkplaces) engine | GPLv2+ | Native Flatpak runtime |
+| [LibreQuake](https://github.com/lavenderdotpet/LibreQuake) lite (`id1/pak0.pak`, `pak1.pak`) | Free/open Quake-compatible data (see package docs) | Satisfies DarkPlaces required-files / gfx menu check |
+
 ## Upstream links
 
 - Optimus UI: https://github.com/openng-org/optimus-ui
@@ -43,3 +50,5 @@ No commercial textures are bundled. Generated ElevenLabs audio is produced at ru
 - Three.js: https://threejs.org/
 - Howler: https://howlerjs.com/
 - ElevenLabs: https://elevenlabs.io/docs
+- LibreQuake: https://github.com/lavenderdotpet/LibreQuake
+- DarkPlaces: https://github.com/darkplacesengine/darkplaces

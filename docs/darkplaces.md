@@ -49,11 +49,12 @@ Controls (also in `default.cfg`):
 
 ## Free assets policy
 
-- Flatpak **does not** redistribute proprietary Quake `id1` pak files.
-- `darkplaces/id1/` is an empty stub so DarkPlaces has a valid base gamedir.
+- Flatpak **does not** redistribute proprietary id Software Quake paks.
+- It **does** ship [LibreQuake](https://github.com/lavenderdotpet/LibreQuake) lite into `id1/` (`pak0.pak` / `pak1.pak`) so DarkPlaces finds menu/gfx data.
+- Without those files, DarkPlaces shows *“The required files were not found”* / *add `-basedir`* — even when `-basedir` is already set.
+- Local: `./scripts/dp-fetch-librequake.sh` (paks are gitignored).
 - `ocean1.bsp` / `start.bsp` are free maps compiled from CC0 `.map` source.
-- Models/sounds are optional; gameplay hulls work without id1 MDLs.
-- Optional: place free LibreQuake (or other free) assets under `darkplaces/shipgame/progs/` and `sound/`, then re-enable `setmodel` / `precache_sound` in QuakeC.
+- Launcher always uses `-basedir <…/darkplaces> -game shipgame`.
 
 ## Flatpak + GitHub Pages remote
 
