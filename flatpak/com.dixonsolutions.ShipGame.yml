@@ -1,0 +1,59 @@
+# Flatpak manifest — DarkPlaces engine + free Ship Game QuakeC gamedir
+# App ID: com.dixonsolutions.ShipGame
+# Does NOT ship proprietary Quake pak files.
+app-id: com.dixonsolutions.ShipGame
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: ship-game
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+modules:
+  - name: darkplaces
+    buildsystem: simple
+    build-options:
+      build-args:
+        - --share=network
+    build-commands:
+      - |
+        set -e
+        if make -j"${FLATPAK_BUILDER_N_JOBS:-2}" sdl-release; then
+          true
+        else
+          make -j"${FLATPAK_BUILDER_N_JOBS:-2}" release
+        fi
+        BIN="$(find . -maxdepth 3 -type f -name 'darkplaces*' -executable | head -1)"
+        test -n "$BIN"
+        install -Dm755 "$BIN" /app/bin/darkplaces-sdl
+    sources:
+      - type: git
+        url: https://github.com/darkplacesengine/darkplaces.git
+        branch: master
+
+  - name: shipgame-data
+    buildsystem: simple
+    build-commands:
+      - install -d /app/share/ship-game/darkplaces
+      - cp -a shipgame /app/share/ship-game/darkplaces/
+      - install -Dm755 ship-game.sh /app/bin/ship-game
+      - install -Dm644 com.dixonsolutions.ShipGame.desktop /app/share/applications/com.dixonsolutions.ShipGame.desktop
+      - install -Dm644 com.dixonsolutions.ShipGame.metainfo.xml /app/share/metainfo/com.dixonsolutions.ShipGame.metainfo.xml
+      - install -Dm644 icons/ship-game-flatpak-128.png /app/share/icons/hicolor/128x128/apps/com.dixonsolutions.ShipGame.png
+      - install -Dm644 icons/ship-game-flatpak-256.png /app/share/icons/hicolor/256x256/apps/com.dixonsolutions.ShipGame.png
+    sources:
+      - type: dir
+        path: ../darkplaces/shipgame
+        dest: shipgame
+      - type: file
+        path: ship-game.sh
+      - type: file
+        path: com.dixonsolutions.ShipGame.desktop
+      - type: file
+        path: com.dixonsolutions.ShipGame.metainfo.xml
+      - type: dir
+        path: ../branding/icons
+        dest: icons

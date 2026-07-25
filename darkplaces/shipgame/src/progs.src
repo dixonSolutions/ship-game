@@ -1,0 +1,13 @@
+../progs.dat
+defs.qc
+builtins.qc
+subs.qc
+weather.qc
+ocean.qc
+combat.qc
+ship.qc
+ai_ships.qc
+crew.qc
+client.qc
+world.qc
+triggers.qc

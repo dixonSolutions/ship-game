@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Ship Game
+GenericName=Sailing game
+Comment=Sailing combat on the DarkPlaces Quake engine (QuakeC)
+Exec=ship-game
+Icon=com.dixonsolutions.ShipGame
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=sailing;quake;darkplaces;ship;
+StartupNotify=true

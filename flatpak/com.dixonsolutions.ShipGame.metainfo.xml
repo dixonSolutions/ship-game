@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.dixonsolutions.ShipGame</id>
+  <name>Ship Game</name>
+  <summary>Sailing combat powered by DarkPlaces QuakeC</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer_name>dixonSolutions</developer_name>
+  <description>
+    <p>
+      Ship Game is an immersive sailing combat vertical slice running on the
+      DarkPlaces Quake engine with custom QuakeC gameplay: wind-driven sailing,
+      weather (including tornado and tsunami intensity), ballistic cannons,
+      hull collisions, and AI ships.
+    </p>
+    <p>
+      This Flatpak ships only free assets and the engine. It does not redistribute
+      proprietary Quake pak files. Optional Quake shareware id1 content can be
+      provided by the user for extra stock maps.
+    </p>
+  </description>
+  <launchable type="desktop-id">com.dixonsolutions.ShipGame.desktop</launchable>
+  <url type="homepage">https://github.com/dixonSolutions/ship-game</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Tornado weather playtest (browser legacy slice)</caption>
+      <image>https://raw.githubusercontent.com/dixonSolutions/ship-game/main/docs/screenshots/13-tornado.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.2.0" date="2026-07-25" />
+  </releases>
+</component>

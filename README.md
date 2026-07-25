@@ -1,8 +1,21 @@
 # Ship Game
 
-Immersive browser-based sailing game: Angular + Optimus UI HUD, Three.js ocean, and a secure Node/TypeScript API for crew dialogue (Bedrock) plus ElevenLabs voices/SFX (server-side only).
+Immersive sailing combat game.
 
-## Quick start
+**Primary native build:** [DarkPlaces](https://github.com/darkplacesengine/darkplaces) Quake engine + QuakeC (`darkplaces/shipgame/`).  
+**Legacy web build:** Angular + Optimus UI + Three.js client and Node API (`client/`, `server/`) — still supported for browser play.
+
+## Quick start (DarkPlaces / QuakeC)
+
+```bash
+./scripts/qc-build.sh          # compile QuakeC → progs.dat (needs fteqcc)
+./scripts/dp-build-engine.sh   # optional: build DarkPlaces (needs SDL2)
+./scripts/dp-run.sh ocean1     # run free ocean arena map
+```
+
+See [docs/darkplaces.md](docs/darkplaces.md) for Flatpak / GitHub Pages remote install.
+
+## Quick start (legacy browser)
 
 ```bash
 cp .env.example .env   # fill secrets only on the server machine; never commit
@@ -20,10 +33,13 @@ npm run dev            # ports from root .env (defaults client :4200, server :87
 
 | Package | Role |
 | --- | --- |
-| `client/` | Angular 21 app (strict TS), Three.js scene, Optimus UI HUD |
-| `server/` | Express API — Bedrock / Polly / ElevenLabs only here |
+| `darkplaces/shipgame/` | QuakeC gamedir (sailing, weather, combat) + free `ocean1` map |
+| `flatpak/` | `com.dixonsolutions.ShipGame` Flatpak + desktop/metainfo |
+| `branding/icons/` | App icon (SVG + PNG) |
+| `client/` | Legacy Angular 21 + Three.js browser client |
+| `server/` | Legacy Express API — Bedrock / Polly / ElevenLabs |
 | `shared/` | Zod schemas & shared API contracts |
-| `docs/` | Architecture, controls, security, testing, roadmap |
+| `docs/` | Architecture, DarkPlaces, controls, security, testing |
 
 ## Scripts (from repo root)
 
@@ -60,7 +76,8 @@ Secrets stay in `.env` (gitignored). The browser calls `/api/dialogue`, `/api/tt
 
 | Doc | Contents |
 | --- | --- |
-| [docs/setup.md](docs/setup.md) | Install, `.env` ports/secrets, run/stop/build |
+| [docs/darkplaces.md](docs/darkplaces.md) | QuakeC build, DarkPlaces run, Flatpak Pages remote |
+| [docs/setup.md](docs/setup.md) | Legacy browser install, `.env` ports/secrets |
 | [docs/architecture.md](docs/architecture.md) | Client/server modules and tech choices |
 | [docs/controls.md](docs/controls.md) | Keyboard, mouse, touch, gamepad, settings |
 | [docs/gameplay-systems.md](docs/gameplay-systems.md) | Wind, ocean, weather, collisions, combat, crew |

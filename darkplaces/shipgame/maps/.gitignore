@@ -1,0 +1,5 @@
+*.log
+*.prt
+*.lno
+*.content.json
+*.texinfo.json

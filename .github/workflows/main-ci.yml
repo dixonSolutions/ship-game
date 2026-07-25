@@ -1,0 +1,110 @@
+name: Main CI — QuakeC + Flatpak Pages remote
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-main
+  cancel-in-progress: true
+
+jobs:
+  quakec:
+    name: Compile QuakeC
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install fteqcc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fteqcc
+      - name: Build progs.dat
+        run: bash scripts/qc-build.sh
+      - name: Upload progs.dat
+        uses: actions/upload-artifact@v4
+        with:
+          name: shipgame-progs
+          path: darkplaces/shipgame/progs.dat
+
+  flatpak-pages:
+    name: Flatpak + GitHub Pages remote
+    runs-on: ubuntu-latest
+    needs: quakec
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download progs.dat
+        uses: actions/download-artifact@v4
+        with:
+          name: shipgame-progs
+          path: darkplaces/shipgame
+
+      - name: Install Flatpak tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            flatpak flatpak-builder ostree elfutils xz-utils
+          flatpak remote-add --user --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Build Flatpak into OSTree archive repo
+        run: |
+          set -euo pipefail
+          mkdir -p pages
+          ostree --repo=pages/repo init --mode=archive-z2
+          # Build from repo root so dir source path works
+          flatpak-builder --user --install-deps-from=flathub \
+            --force-clean --disable-rofiles-fuse \
+            --repo=pages/repo build-dir \
+            flatpak/com.dixonsolutions.ShipGame.yml
+          flatpak build-update-repo --generate-static-deltas --prune pages/repo
+
+      - name: Write Pages index + flatpakrepo
+        run: |
+          set -euo pipefail
+          REPO_OWNER="${GITHUB_REPOSITORY_OWNER}"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          PAGES_URL="https://${REPO_OWNER}.github.io/${REPO_NAME}"
+          cat > pages/shipgame.flatpakrepo <<EOF
+          [Flatpak Repo]
+          Title=Ship Game
+          Url=${PAGES_URL}/repo
+          Homepage=${PAGES_URL}
+          Comment=Unsigned CI Flatpak remote for Ship Game (DarkPlaces)
+          EOF
+          # strip leading spaces from heredoc
+          sed -i 's/^[[:space:]]*//' pages/shipgame.flatpakrepo
+          cat > pages/index.html <<EOF
+          <!doctype html>
+          <html lang="en">
+          <head><meta charset="utf-8"><title>Ship Game Flatpak</title>
+          <style>body{font-family:system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem;line-height:1.5}
+          code,pre{background:#f4f4f4;padding:.2rem .4rem;border-radius:4px}</style></head>
+          <body>
+          <h1>Ship Game — Flatpak remote</h1>
+          <p>DarkPlaces + QuakeC sailing slice. Free assets only (no proprietary Quake paks).</p>
+          <pre>flatpak remote-add --if-not-exists shipgame ${PAGES_URL}/shipgame.flatpakrepo
+          flatpak install shipgame com.dixonsolutions.ShipGame
+          flatpak run com.dixonsolutions.ShipGame</pre>
+          <p><a href="shipgame.flatpakrepo">shipgame.flatpakrepo</a> · <a href="https://github.com/${GITHUB_REPOSITORY}">source</a></p>
+          </body></html>
+          EOF
+          touch pages/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
