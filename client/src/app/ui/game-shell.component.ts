@@ -3,15 +3,17 @@ import { SceneHost } from '../game/scene-host';
 import { InputService } from '../game/input.service';
 import { HudComponent } from './hud.component';
 import { OverlaysComponent } from './overlays.component';
+import { ControlsOverlayComponent } from './controls-overlay.component';
 
 @Component({
   selector: 'app-game-shell',
   standalone: true,
-  imports: [SceneHost, HudComponent, OverlaysComponent],
+  imports: [SceneHost, HudComponent, OverlaysComponent, ControlsOverlayComponent],
   template: `
     <main class="shell">
       <app-scene-host />
       <app-hud />
+      <app-controls-overlay />
       <app-overlays />
     </main>
   `,

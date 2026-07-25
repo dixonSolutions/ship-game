@@ -84,6 +84,16 @@ import type { GraphicsQuality, WeatherId } from '../systems/types';
         </label>
 
         <label class="toggle-row">
+          <span>On-screen controls</span>
+          <p-toggleswitch [(ngModel)]="showOnScreenControls" (onChange)="onHudAids()" />
+        </label>
+
+        <label class="toggle-row">
+          <span>Control legend</span>
+          <p-toggleswitch [(ngModel)]="showControlLegend" (onChange)="onHudAids()" />
+        </label>
+
+        <label class="toggle-row">
           <span>Debug physics (D)</span>
           <p-toggleswitch [(ngModel)]="debugPhysics" (onChange)="onDebug()" />
         </label>
@@ -155,6 +165,8 @@ export class SettingsPanelComponent {
   reduceMotion = this.engine.snapshot().settings.accessibility.reduceMotion;
   highContrast = this.engine.snapshot().settings.accessibility.highContrast;
   debugPhysics = this.engine.snapshot().settings.debugPhysics;
+  showOnScreenControls = this.engine.snapshot().settings.showOnScreenControls;
+  showControlLegend = this.engine.snapshot().settings.showControlLegend;
 
   readonly weatherOptions: { label: string; value: WeatherId }[] = [
     { label: 'Clear', value: 'clear' },
@@ -214,5 +226,12 @@ export class SettingsPanelComponent {
 
   onDebug(): void {
     this.engine.patchSettings({ debugPhysics: this.debugPhysics });
+  }
+
+  onHudAids(): void {
+    this.engine.patchSettings({
+      showOnScreenControls: this.showOnScreenControls,
+      showControlLegend: this.showControlLegend,
+    });
   }
 }

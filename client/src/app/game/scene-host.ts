@@ -601,19 +601,31 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     };
   }
 
-  private createCrewFigure(): THREE.Group {
+  private createCrewFigure(roleColor = 0x3d5a6c): THREE.Group {
     const g = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.12, 0.35, 4, 8),
-      new THREE.MeshStandardMaterial({ color: 0x3d5a6c, roughness: 0.7 }),
-    );
-    body.position.y = 0.35;
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.12, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0xd2b48c, roughness: 0.65 }),
-    );
+    const skin = new THREE.MeshStandardMaterial({ color: 0xc4a484, roughness: 0.7 });
+    const cloth = new THREE.MeshStandardMaterial({ color: roleColor, roughness: 0.75 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x2a2430, roughness: 0.85 });
+
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.28, 4, 8), cloth);
+    torso.position.y = 0.42;
+    const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.14), dark);
+    pelvis.position.y = 0.22;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 10), skin);
     head.position.y = 0.72;
-    g.add(body, head);
+    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.08, 10), dark);
+    hat.position.y = 0.82;
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.22, 3, 6), skin);
+    armL.position.set(-0.16, 0.45, 0);
+    armL.rotation.z = 0.35;
+    const armR = armL.clone();
+    armR.position.x = 0.16;
+    armR.rotation.z = -0.35;
+    const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.22, 3, 6), dark);
+    legL.position.set(-0.06, 0.08, 0);
+    const legR = legL.clone();
+    legR.position.x = 0.06;
+    g.add(torso, pelvis, head, hat, armL, armR, legL, legR);
     return g;
   }
 
@@ -785,6 +797,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
       snap.controls.sailTrim,
       snap.controls.rudder,
       snap.settings.debugPhysics,
+      snap.wind.directionRad,
     );
     this.syncCrew(this.playerVisual, snap.crew, snap.ocean.time);
 
@@ -892,7 +905,14 @@ export class SceneHost implements AfterViewInit, OnDestroy {
         this.scene.add(visual.root);
         this.aiVisuals.set(ai.id, visual);
       }
-      this.applyShipVisual(visual, ai.ship, 0.75, 0, snap.settings.debugPhysics);
+      this.applyShipVisual(
+        visual,
+        ai.ship,
+        0.75,
+        0,
+        snap.settings.debugPhysics,
+        snap.wind.directionRad,
+      );
       visual.root.visible = ai.ship.sinkProgress < 0.98;
     }
     for (const [id, visual] of this.aiVisuals) {
@@ -909,6 +929,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     sailTrim: number,
     rudder: number,
     debugPhysics = false,
+    windDirRad?: number,
   ): void {
     visual.root.position.set(ship.position.x, ship.position.y, ship.position.z);
     visual.root.rotation.y = ship.heading;
@@ -919,13 +940,23 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     const hullHealth = clamp01(ship.hullIntegrity);
     const damage = 1 - hullHealth;
 
+    // Apparent wind angle → billow + heel-coupled sail tilt (readable, not extreme).
+    const wind = windDirRad ?? ship.heading;
+    let apparent = wind - ship.heading;
+    while (apparent > Math.PI) apparent -= Math.PI * 2;
+    while (apparent < -Math.PI) apparent += Math.PI * 2;
+    const fill = Math.sin(Math.abs(apparent)) * sailTrim;
+    const windwardTilt = Math.sin(apparent) * (0.18 + fill * 0.35);
+
     visual.sail.scale.set(
       (0.35 + sailTrim * 0.75) * (0.35 + sailHealth * 0.65),
       (0.45 + sailTrim * 0.7) * (0.4 + sailHealth * 0.6),
       1,
     );
-    visual.sail.rotation.y = Math.sin(sailTrim * Math.PI) * 0.25;
-    visual.sail.rotation.z = (1 - sailHealth) * 0.55;
+    visual.sail.rotation.y = windwardTilt + Math.sin(sailTrim * Math.PI) * 0.12;
+    visual.sail.rotation.z = -ship.heel * 0.45 + (1 - sailHealth) * 0.35;
+    visual.sail.rotation.x = fill * 0.2 - ship.pitch * 0.15;
+    visual.yard.rotation.y = windwardTilt * 0.85;
     visual.sail.visible = sailHealth > 0.12 || ship.sinkProgress < 0.4;
     const sailMat = visual.sail.material as THREE.MeshStandardMaterial;
     sailMat.opacity = 0.35 + sailHealth * 0.65;
@@ -935,7 +966,7 @@ export class SceneHost implements AfterViewInit, OnDestroy {
     // Mast / yard list and snap as structure fails.
     visual.mast.rotation.z = damage * 0.35 + (ship.sinkProgress > 0 ? ship.sinkProgress * 0.8 : 0);
     visual.mast.rotation.x = ship.sinkProgress * 0.45;
-    visual.yard.rotation.y = damage * 0.4;
+    visual.yard.rotation.y += damage * 0.25;
     visual.yard.position.y = 4.4 - damage * 0.6;
     if (hullHealth <= 0) {
       visual.mast.scale.set(1, Math.max(0.15, 1 - ship.sinkProgress), 1);
@@ -966,6 +997,13 @@ export class SceneHost implements AfterViewInit, OnDestroy {
   }
 
   private syncCrew(visual: ShipVisual, crew: CrewMember[], time: number): void {
+    const roleColors: Record<string, number> = {
+      captain: 0x4a3a2a,
+      helmsman: 0x3d5a6c,
+      gunner: 0x6a3a2a,
+      lookout: 0x3a5a3a,
+      boatswain: 0x5a4a2a,
+    };
     crew.forEach((member, i) => {
       const figure = visual.crew[i];
       if (!figure) return;
@@ -975,6 +1013,11 @@ export class SceneHost implements AfterViewInit, OnDestroy {
         member.deckOffset.z,
       );
       figure.rotation.y = Math.sin(time * 0.7 + i) * 0.15;
+      figure.scale.setScalar(member.role === 'lookout' ? 0.85 : 1);
+      const cloth = figure.children[0] as THREE.Mesh | undefined;
+      if (cloth?.material instanceof THREE.MeshStandardMaterial) {
+        cloth.material.color.setHex(roleColors[member.role] ?? 0x3d5a6c);
+      }
     });
   }
 

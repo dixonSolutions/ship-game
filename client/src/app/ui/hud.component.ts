@@ -59,14 +59,7 @@ import { InputService } from '../game/input.service';
           <div class="dialogue" role="status">{{ dialogue() }}</div>
         }
 
-        <div class="touch-pad" aria-label="Touch controls">
-          <button type="button" (pointerdown)="steer(-1)">◀</button>
-          <button type="button" (pointerdown)="steer(1)">▶</button>
-          <button type="button" (pointerdown)="trim(0.08)">Sail+</button>
-          <button type="button" (pointerdown)="trim(-0.08)">Sail-</button>
-          <button type="button" (click)="input.fire()">Fire</button>
-          <button type="button" (click)="input.toggleAnchor()">{{ anchorLabel() }}</button>
-        </div>
+        <!-- Touch pad moved to app-controls-overlay (Settings → On-screen controls). -->
       </div>
     }
   `,

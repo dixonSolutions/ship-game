@@ -56,6 +56,8 @@ Settings sliders and pause remain available from the pause overlay.
 - Graphics quality (low / medium / high)
 - Reduce motion
 - High contrast HUD
+- On-screen controls (always-visible pad; defaults on)
+- Control legend (keyboard/mouse breakdown; defaults on)
 - Debug physics overlay
 
 ## Accessibility

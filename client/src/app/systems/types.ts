@@ -149,6 +149,10 @@ export interface GameSettings {
   accessibility: AccessibilitySettings;
   /** Show collision radii and projectile helpers. */
   debugPhysics: boolean;
+  /** Always show on-screen touch-style control pad. */
+  showOnScreenControls: boolean;
+  /** Show keyboard/mouse control breakdown legend. */
+  showControlLegend: boolean;
 }
 
 export interface GameSnapshot {

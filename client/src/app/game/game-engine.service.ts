@@ -38,6 +38,8 @@ const DEFAULT_SETTINGS: GameSettings = {
     highContrast: false,
   },
   debugPhysics: false,
+  showOnScreenControls: true,
+  showControlLegend: true,
 };
 
 @Injectable({ providedIn: 'root' })
@@ -461,6 +463,8 @@ export class GameEngineService {
         ...DEFAULT_SETTINGS,
         accessibility: { ...DEFAULT_SETTINGS.accessibility },
         debugPhysics: false,
+        showOnScreenControls: true,
+        showControlLegend: true,
       },
     };
   }

@@ -71,7 +71,7 @@ export class OceanSystem {
         stormBoost *
         scale,
       0.25,
-      1.85,
+      1.55,
     );
 
     let waveLength = 16 + (1 - windStrength) * 10;
