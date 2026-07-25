@@ -31,14 +31,21 @@ Browser (Angular)                    Server (Node/TS)
 ## Client modules
 
 - `client/src/app/game/` — `GameEngineService`, `SceneHost`, `InputService`, `AudioService`, dialogue HTTP client
-- `client/src/app/systems/` — wind, weather, ocean, ship physics, combat, crew, AI
+- `client/src/app/systems/` — wind, weather, ocean, ship physics, collision, combat, damage FX, crew, AI
 - `client/src/app/ui/` — HUD, settings, pause/onboarding/victory overlays
+- `client/public/assets/` — original SVG hull / sail / foam textures
+- `client/src/environments/environment.generated.ts` — API base URL synced from root `.env` ports
 
 ## Server modules
 
-- `server/src/routes/` — `/api/dialogue`, `/api/tts`
-- `server/src/services/` — Bedrock converse, Polly synthesize, constrained prompts
+- `server/src/routes/` — `/api/dialogue`, `/api/tts`, `/api/sfx`
+- `server/src/services/` — Bedrock converse, Polly / ElevenLabs synthesize, constrained prompts
 - `server/src/middleware/` — Zod body validation, safe error mapping
+- `server/src/config.ts` — loads root `.env`; `SERVER_PORT` / `CLIENT_PORT` / CORS defaults
+
+## Startup ports
+
+Root scripts (`scripts/env.mjs`, `run-client.mjs`, `dev-ctl.mjs`) and the server config share `CLIENT_PORT` + `SERVER_PORT` from `.env`. Defaults remain `4200` / `8787`. See [setup.md](setup.md).
 
 ## Shared contracts
 

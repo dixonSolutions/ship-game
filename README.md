@@ -58,4 +58,12 @@ Secrets stay in `.env` (gitignored). The browser calls `/api/dialogue`, `/api/tt
 
 ## Docs
 
-Start with [docs/setup.md](docs/setup.md) and [docs/architecture.md](docs/architecture.md).
+| Doc | Contents |
+| --- | --- |
+| [docs/setup.md](docs/setup.md) | Install, `.env` ports/secrets, run/stop/build |
+| [docs/architecture.md](docs/architecture.md) | Client/server modules and tech choices |
+| [docs/controls.md](docs/controls.md) | Keyboard, mouse, touch, gamepad, settings |
+| [docs/gameplay-systems.md](docs/gameplay-systems.md) | Wind, ocean, weather, collisions, combat, crew |
+| [docs/elevenlabs-audio.md](docs/elevenlabs-audio.md) | Server-side TTS/SFX |
+| [docs/bedrock-polly-security.md](docs/bedrock-polly-security.md) | Credential boundary |
+| [docs/screenshots/](docs/screenshots/) | Browser playtest captures |

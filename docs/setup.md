@@ -31,6 +31,29 @@ Copy `.env.example` → `.env`. Never commit `.env`.
 | `API_BASE_URL` | Optional browser API URL (default `http://localhost:$SERVER_PORT`) |
 | `CORS_ORIGIN` | Allowed browser origin (default `http://localhost:$CLIENT_PORT`) |
 
+### Ports (not hard-coded)
+
+Both client and server startup ports come from the **root** `.env`:
+
+| Variable | Used by |
+| --- | --- |
+| `CLIENT_PORT` | `scripts/run-client.mjs` → `ng serve --port …` |
+| `SERVER_PORT` (or legacy `PORT`) | Express listen via `server/src/config.ts` |
+| `API_BASE_URL` | Written into `client/src/environments/environment.generated.ts` on client start/build |
+| `CORS_ORIGIN` | Defaults to `http://localhost:$CLIENT_PORT` when unset |
+
+```bash
+# example: run on alternate ports
+CLIENT_PORT=4300
+SERVER_PORT=9090
+# optional explicit overrides:
+# API_BASE_URL=http://localhost:9090
+# CORS_ORIGIN=http://localhost:4300
+```
+
+`npm run start -w client` runs `scripts/sync-client-env.mjs` then serves on `CLIENT_PORT`.  
+`npm run start:bg` / `restart` / `stop` also read the same root `.env` via `scripts/dev-ctl.mjs`.
+
 ## Run / stop / restart / build
 
 From the **repo root**:

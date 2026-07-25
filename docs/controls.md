@@ -11,6 +11,7 @@
 | `Shift` / `Z` | Throttle assist (oars/engine stub) |
 | `Space` / `F` | Fire cannons |
 | `A` / `X` | Toggle anchor |
+| `D` | Toggle debug physics overlay (hull radii / projectile helpers) |
 | `Esc` | Pause / resume |
 
 ## Mouse
@@ -50,10 +51,12 @@ Settings sliders and pause remain available from the pause overlay.
 - Wind strength
 - Wave scale
 - Time of day
-- Weather preset (clear → tsunami)
+- Weather preset: clear, rain, storm, fog, lightning, hurricane, tsunami, tornado
+- Weather intensity (0–1; scales severe weather FX and stress)
 - Graphics quality (low / medium / high)
 - Reduce motion
 - High contrast HUD
+- Debug physics overlay
 
 ## Accessibility
 

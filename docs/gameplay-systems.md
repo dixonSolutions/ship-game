@@ -30,14 +30,23 @@ Outputs: speed, heading, heel, pitch, position, sink progress.
 - Hull zero triggers a sinking animation before defeat
 - Sail integrity reduces available thrust after combat damage
 
+## Collisions
+
+Circle-circle hull resolution on the XZ plane (`collision.system.ts`):
+
+- Separates overlapping player/AI (and AI/AI) hulls
+- Bleeds speed and applies impact damage scaled by relative velocity
+- Projectile hits use the same hull radii (`PLAYER_HULL_RADIUS` / `AI_HULL_RADIUS` / `BALL_RADIUS`)
+- Debug overlay (`D` or Settings → Debug physics) draws hull rings and ball helpers
+
 ## Combat
 
+- Live ballistic projectiles (muzzle velocity, gravity, max flight time)
 - Player aim cone from `cannonAimYaw` / pitch (mouse, touch, gamepad)
 - Reload gate (~2.4s) with HUD meter
-- Hit falloff by distance; miss traces still spawn visuals
 - AI hostiles circle for broadsides and return fire
 - Shot visuals: cannonballs, muzzle smoke, water splash, impact burst
-- Hull hits spawn explosion flash/blast, wood debris shards, and rupture FX
+- Hull hits spawn explosion flash/blast, wood debris shards, and rupture FX (`damage-fx.system.ts`)
 - Hull integrity bands (0.6 / 0.3 / 0) trigger structural ruptures; sink triggers a secondary blast + smoke trail
 - Ship meshes scar, crack, and lose sail/mast integrity as damage accumulates
 - Victory when all hostiles are destroyed; defeat after the player finishes sinking
