@@ -171,18 +171,18 @@ entity	msg_entity;
 .float	ship_pitch;
 .entity	ship_owner;
 
-// world sailing state (stored on world entity)
-.float	wind_dir;		// degrees
-.float	wind_str;		// 0..1
-.float	weather_id;		// enum
-.float	weather_intensity;
-.float	ocean_time;
-.float	wave_height;
-.float	wave_chop;
-.float	tsunami_pulse;
-.float	voyage_time;
-.float	hostiles_alive;
-.float	game_over;		// 0 play 1 victory 2 defeat
+// Global sailing state (not world entity fields — world edict rejects custom writes)
+float	wind_dir;		// degrees
+float	wind_str;		// 0..1
+float	weather_id;		// enum
+float	weather_intensity;
+float	ocean_time;
+float	wave_height;
+float	wave_chop;
+float	tsunami_pulse;
+float	voyage_time;
+float	hostiles_alive;
+float	game_over;		// 0 play 1 victory 2 defeat
 
 // weather ids
 float WEATHER_CLEAR = 0;

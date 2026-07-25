@@ -20,7 +20,7 @@ void() StartFrame =
 	Ocean_Tick();
 	Weather_ApplyPreset();
 	Crew_Tick();
-	world.voyage_time = world.voyage_time + frametime;
+	voyage_time = voyage_time + frametime;
 };
 
 void() worldspawn =
@@ -36,17 +36,17 @@ void() worldspawn =
 	lightstyle(1, "mmnmmommommnonmmonqnmmo");
 	lightstyle(2, "abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba");
 
-	world.wind_dir = 45;
-	world.wind_str = 0.55;
-	world.weather_id = WEATHER_CLEAR;
-	world.weather_intensity = 0.55;
-	world.ocean_time = 0;
-	world.wave_height = 0.85;
-	world.wave_chop = 0.42;
-	world.tsunami_pulse = 0;
-	world.voyage_time = 0;
-	world.hostiles_alive = 0;
-	world.game_over = 0;
+	wind_dir = 45;
+	wind_str = 0.55;
+	weather_id = WEATHER_CLEAR;
+	weather_intensity = 0.55;
+	ocean_time = 0;
+	wave_height = 0.85;
+	wave_chop = 0.42;
+	tsunami_pulse = 0;
+	voyage_time = 0;
+	hostiles_alive = 0;
+	game_over = 0;
 
 	// spawn AI ships around the arena (free placeholder map)
 	AI_SpawnShip('400 0 40', 2, TRUE);

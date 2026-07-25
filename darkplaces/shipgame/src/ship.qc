@@ -5,7 +5,7 @@ void() Ship_FireCannon;
 float(entity sh) Wind_Thrust =
 {
 	local float rel, absrel, polar, trim;
-	rel = angle_diff(world.wind_dir, sh.ship_heading);
+	rel = angle_diff(wind_dir, sh.ship_heading);
 	absrel = fabs(rel);
 	trim = ship_clamp(sh.sail_trim, 0.15, 1);
 
@@ -18,7 +18,7 @@ float(entity sh) Wind_Thrust =
 	else
 		polar = 0.65;				// dead run softened
 
-	return polar * world.wind_str * trim * sh.sail_integrity;
+	return polar * wind_str * trim * sh.sail_integrity;
 };
 
 void(entity sh) Ship_ResolveCollisions =
@@ -63,7 +63,7 @@ void() Ship_PlayerThink =
 	self.nextthink = time + 0.05;
 	self.think = Ship_PlayerThink;
 
-	if (world.game_over)
+	if (game_over)
 		return;
 
 	if (self.hull_integrity <= 0)
@@ -74,7 +74,7 @@ void() Ship_PlayerThink =
 		setorigin(self, self.origin);
 		if (self.sink_progress > 0.85)
 		{
-			world.game_over = 2;
+			game_over = 2;
 			centerprint(self, "Defeat — the sea claims the hull\n");
 			bprint("Defeat\n");
 		}
@@ -126,9 +126,9 @@ void() Ship_PlayerThink =
 	turn = (0.55 + self.ship_speed * 0.002) * (0.35 + self.sail_integrity * 0.65);
 	self.ship_heading = wrap_angle(self.ship_heading + self.rudder * frametime * turn * 60);
 	self.angles_y = self.ship_heading;
-	self.ship_heel = ship_lerp(self.ship_heel, self.rudder * 12 + world.wind_str * 6, frametime * 3);
+	self.ship_heel = ship_lerp(self.ship_heel, self.rudder * 12 + wind_str * 6, frametime * 3);
 	self.angles_z = self.ship_heel;
-	self.ship_pitch = qsin(world.ocean_time * 1.4) * world.wave_height * 4;
+	self.ship_pitch = qsin(ocean_time * 1.4) * wave_height * 4;
 	self.angles_x = self.ship_pitch;
 
 	rad = self.ship_heading * 3.14159265 / 180;

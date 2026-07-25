@@ -8,10 +8,13 @@ The Angular + Node browser client remains in the repo as a **legacy** web build 
 
 | Path | Purpose |
 | --- | --- |
+| `darkplaces/id1/` | Free stub base gamedir (no proprietary Quake paks) |
 | `darkplaces/shipgame/src/*.qc` | QuakeC sources (sailing, weather, combat, AI) |
 | `darkplaces/shipgame/progs.dat` | Compiled progs (via `scripts/qc-build.sh`) |
 | `darkplaces/shipgame/maps/ocean1.map` | Free CC0 map source |
 | `darkplaces/shipgame/maps/ocean1.bsp` | Compiled free arena map |
+| `darkplaces/shipgame/maps/start.bsp` | Copy of ocean1 (engine default map name) |
+| `darkplaces/shipgame/quake.rc` | Startup script → `map ocean1` |
 | `darkplaces/shipgame/default.cfg` | Key binds |
 | `branding/icons/` | App icon SVG + PNGs |
 | `flatpak/` | Flatpak manifest, desktop, AppStream |
@@ -47,7 +50,8 @@ Controls (also in `default.cfg`):
 ## Free assets policy
 
 - Flatpak **does not** redistribute proprietary Quake `id1` pak files.
-- `ocean1.bsp` is a free map compiled from CC0 `.map` source.
+- `darkplaces/id1/` is an empty stub so DarkPlaces has a valid base gamedir.
+- `ocean1.bsp` / `start.bsp` are free maps compiled from CC0 `.map` source.
 - Models/sounds are optional; gameplay hulls work without id1 MDLs.
 - Optional: place free LibreQuake (or other free) assets under `darkplaces/shipgame/progs/` and `sound/`, then re-enable `setmodel` / `precache_sound` in QuakeC.
 

@@ -23,6 +23,16 @@ if [[ -z "${BIN}" ]]; then
   exit 1
 fi
 
+if [[ ! -d "$BASE/id1" ]]; then
+  echo "error: missing free stub basedir: $BASE/id1" >&2
+  echo "DarkPlaces requires an id1 gamedir next to shipgame (empty stub is OK)." >&2
+  exit 1
+fi
+if [[ ! -f "$BASE/$GAME/maps/start.bsp" ]]; then
+  echo "warn: missing $BASE/$GAME/maps/start.bsp — copying from ocean1.bsp" >&2
+  cp -f "$BASE/$GAME/maps/ocean1.bsp" "$BASE/$GAME/maps/start.bsp"
+fi
+
 MAP="${1:-ocean1}"
 echo "[dp-run] bin=$BIN basedir=$BASE -game $GAME +map $MAP"
 exec "$BIN" -basedir "$BASE" -game "$GAME" +map "$MAP" "${@:2}"

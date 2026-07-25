@@ -8,7 +8,7 @@ sdk: org.freedesktop.Sdk
 command: ship-game
 finish-args:
   - --share=ipc
-  - --socket=fallback-x11
+  - --socket=x11
   - --socket=wayland
   - --socket=pulseaudio
   - --device=dri
@@ -37,8 +37,11 @@ modules:
   - name: shipgame-data
     buildsystem: simple
     build-commands:
-      - install -d /app/share/ship-game/darkplaces
+      - install -d /app/share/ship-game/darkplaces/id1
+      - install -Dm644 id1/README.md /app/share/ship-game/darkplaces/id1/README.md
       - cp -a shipgame /app/share/ship-game/darkplaces/
+      # Safety: default engine map name is "start"
+      - test -f /app/share/ship-game/darkplaces/shipgame/maps/start.bsp
       - install -Dm755 ship-game.sh /app/bin/ship-game
       - install -Dm644 com.dixonsolutions.ShipGame.desktop /app/share/applications/com.dixonsolutions.ShipGame.desktop
       - install -Dm644 com.dixonsolutions.ShipGame.metainfo.xml /app/share/metainfo/com.dixonsolutions.ShipGame.metainfo.xml
@@ -48,6 +51,9 @@ modules:
       - type: dir
         path: ../darkplaces/shipgame
         dest: shipgame
+      - type: dir
+        path: ../darkplaces/id1
+        dest: id1
       - type: file
         path: ship-game.sh
       - type: file

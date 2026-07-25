@@ -12,7 +12,7 @@ void() AI_ShipThink =
 	self.nextthink = time + 0.1;
 	self.think = AI_ShipThink;
 
-	if (world.game_over)
+	if (game_over)
 		return;
 
 	if (self.hull_integrity <= 0)
@@ -22,10 +22,10 @@ void() AI_ShipThink =
 		setorigin(self, self.origin);
 		if (self.sink_progress > 0.9)
 		{
-			world.hostiles_alive = world.hostiles_alive - 1;
-			if (world.hostiles_alive <= 0 && world.game_over == 0)
+			hostiles_alive = hostiles_alive - 1;
+			if (hostiles_alive <= 0 && game_over == 0)
 			{
-				world.game_over = 1;
+				game_over = 1;
 				bprint("Victory — hostile sails broken\n");
 			}
 			remove(self);
@@ -55,7 +55,7 @@ void() AI_ShipThink =
 	else
 	{
 		// merchants follow wind corridor
-		self.ship_heading = wrap_angle(world.wind_dir + 90);
+		self.ship_heading = wrap_angle(wind_dir + 90);
 		self.sail_trim = 0.55;
 	}
 
@@ -98,5 +98,5 @@ void(vector org, float fact, float ishostile) AI_SpawnShip =
 	sh.nextthink = time + 0.5 + random();
 	sh.think = AI_ShipThink;
 	if (ishostile)
-		world.hostiles_alive = world.hostiles_alive + 1;
+		hostiles_alive = hostiles_alive + 1;
 };

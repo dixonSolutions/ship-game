@@ -1,0 +1,4 @@
+// Ship Game startup — free assets only (no proprietary Quake paks)
+exec default.cfg
+// Default map if the launcher does not pass +map
+map ocean1
