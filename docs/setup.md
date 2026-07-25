@@ -26,8 +26,10 @@ Copy `.env.example` → `.env`. Never commit `.env`.
 | `MOCK_AWS` | `true` (default) stubs AWS for local play |
 | `ELEVENLABS_API_KEY` | Server-only ElevenLabs key for TTS/SFX |
 | `AUDIO_PROVIDER` | `elevenlabs` (default), `polly`, or `mock` |
-| `PORT` | API port (default `8787`) |
-| `CORS_ORIGIN` | Allowed browser origin (default `http://localhost:4200`) |
+| `CLIENT_PORT` | Angular dev server port (default `4200`) |
+| `SERVER_PORT` | API listen port (default `8787`; alias `PORT` still works) |
+| `API_BASE_URL` | Optional browser API URL (default `http://localhost:$SERVER_PORT`) |
+| `CORS_ORIGIN` | Allowed browser origin (default `http://localhost:$CLIENT_PORT`) |
 
 ## Run / stop / restart / build
 
@@ -43,7 +45,7 @@ npm run restart          # background restart both
 npm run start:bg         # start both detached
 ```
 
-Open http://localhost:4200 and click **Cast off**.
+Open `http://localhost:$CLIENT_PORT` (default `4200`) and click **Cast off**.
 
 ## Optimus UI
 
@@ -62,5 +64,5 @@ Source: https://github.com/openng-org/optimus-ui · Docs: https://optimus.openng
 npm run typecheck
 npm test
 npm run build
-curl -s http://localhost:8787/health
+curl -s "http://localhost:${SERVER_PORT:-8787}/health"
 ```

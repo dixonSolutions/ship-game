@@ -5,6 +5,8 @@ import type { ServerConfig } from './config.js';
 
 const testConfig: ServerConfig = {
   PORT: 8787,
+  SERVER_PORT: 8787,
+  CLIENT_PORT: 4200,
   CORS_ORIGIN: 'http://localhost:4200',
   NODE_ENV: 'test',
   AWS_REGION: 'us-east-1',

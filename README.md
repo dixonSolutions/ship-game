@@ -7,11 +7,12 @@ Immersive browser-based sailing game: Angular + Optimus UI HUD, Three.js ocean, 
 ```bash
 cp .env.example .env   # fill secrets only on the server machine; never commit
 npm install
-npm run dev            # client :4200 + server :8787
+npm run dev            # ports from root .env (defaults client :4200, server :8787)
 ```
 
-- Client: http://localhost:4200  
-- API health: http://localhost:8787/health  
+- Ports: set `CLIENT_PORT` / `SERVER_PORT` in `.env` (see `.env.example`)
+- Client: `http://localhost:$CLIENT_PORT`  
+- API health: `http://localhost:$SERVER_PORT/health`  
 - Default `MOCK_AWS=true` so the UI runs without AWS credentials.
 - Set `ELEVENLABS_API_KEY` for generative sea audio (see [docs/elevenlabs-audio.md](docs/elevenlabs-audio.md)).
 
@@ -29,8 +30,8 @@ npm run dev            # client :4200 + server :8787
 | Script | Description |
 | --- | --- |
 | `npm run dev` | Foreground client + server (same as `npm start`) |
-| `npm run dev:client` | Angular only (`:4200`) |
-| `npm run dev:server` | API only (`:8787`, watch mode) |
+| `npm run dev:client` | Angular only (`CLIENT_PORT`) |
+| `npm run dev:server` | API only (`SERVER_PORT`, watch mode) |
 | `npm run build` | Production build (shared → server → client) |
 | `npm run build:client` / `build:server` / `build:shared` | Partial builds |
 | `npm run stop` | Stop client + server |

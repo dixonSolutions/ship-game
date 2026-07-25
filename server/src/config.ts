@@ -19,9 +19,14 @@ if (existsSync(localEnv) && localEnv !== rootEnv) {
   loadEnv({ path: localEnv, override: false });
 }
 
-const EnvSchema = z.object({
-  PORT: z.coerce.number().int().positive().default(8787),
-  CORS_ORIGIN: z.string().default('http://localhost:4200'),
+const EnvSchema = z
+  .object({
+  /** Preferred API listen port. */
+  SERVER_PORT: z.coerce.number().int().positive().optional(),
+  /** Legacy alias for SERVER_PORT. */
+  PORT: z.coerce.number().int().positive().optional(),
+  CLIENT_PORT: z.coerce.number().int().positive().default(4200),
+  CORS_ORIGIN: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   AWS_REGION: z.string().default('us-east-1'),
   BEDROCK_MODEL_ID: z.string().default('anthropic.claude-3-haiku-20240307-v1:0'),
@@ -41,7 +46,19 @@ const EnvSchema = z.object({
   ELEVENLABS_TTS_MODEL: z.string().default('eleven_flash_v2_5'),
   ELEVENLABS_SFX_MODEL: z.string().default('eleven_text_to_sound_v2'),
   ELEVENLABS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(40),
-});
+})
+  .transform((raw) => {
+    const PORT = raw.SERVER_PORT ?? raw.PORT ?? 8787;
+    const CLIENT_PORT = raw.CLIENT_PORT;
+    const CORS_ORIGIN = raw.CORS_ORIGIN ?? `http://localhost:${CLIENT_PORT}`;
+    return {
+      ...raw,
+      PORT,
+      SERVER_PORT: PORT,
+      CLIENT_PORT,
+      CORS_ORIGIN,
+    };
+  });
 
 export type ServerConfig = z.infer<typeof EnvSchema>;
 

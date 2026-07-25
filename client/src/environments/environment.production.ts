@@ -1,4 +1,6 @@
+import { generatedEnv } from './environment.generated';
+
 export const environment = {
   production: true,
-  apiBaseUrl: 'http://localhost:8787',
+  apiBaseUrl: generatedEnv.apiBaseUrl,
 };

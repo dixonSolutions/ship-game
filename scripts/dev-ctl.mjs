@@ -5,12 +5,12 @@
  */
 import { spawn, execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { loadProjectEnv, repoRoot } from './env.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, '..');
+const root = repoRoot;
 const pidDir = join(root, '.local', 'pids');
+const projectEnv = loadProjectEnv();
 
 const TARGETS = ['all', 'client', 'server'];
 
@@ -61,7 +61,6 @@ function isAlive(pid) {
 function killTree(pid) {
   if (!pid || !isAlive(pid)) return;
   try {
-    // Kill the whole process group when started detached with new session.
     process.kill(-pid, 'SIGTERM');
   } catch {
     try {
@@ -99,7 +98,8 @@ function stopTarget(target) {
     forceKillByPattern([
       'Ship game/client.*ng serve',
       'Ship game/node_modules/.bin/ng serve',
-      'ng serve --host 0.0.0.0 --port 4200',
+      'scripts/run-client.mjs',
+      `ng serve --host 0.0.0.0 --port ${projectEnv.CLIENT_PORT}`,
     ]);
     console.log('[stop] client');
   }
@@ -131,7 +131,14 @@ function startOne(name, command, args) {
 
   const child = spawn(command, args, {
     cwd: root,
-    env: { ...process.env, PORT: process.env.PORT || '8787' },
+    env: {
+      ...process.env,
+      ...projectEnv,
+      PORT: projectEnv.SERVER_PORT,
+      SERVER_PORT: projectEnv.SERVER_PORT,
+      CLIENT_PORT: projectEnv.CLIENT_PORT,
+      CORS_ORIGIN: projectEnv.CORS_ORIGIN,
+    },
     detached: true,
     stdio: 'ignore',
   });
@@ -142,23 +149,24 @@ function startOne(name, command, args) {
 }
 
 function startTarget(target) {
+  const clientUrl = `http://localhost:${projectEnv.CLIENT_PORT}`;
+  const serverUrl = `http://localhost:${projectEnv.SERVER_PORT}/health`;
+
   if (target === 'all') {
-    // Prefer a single concurrently supervisor so logs stay together when attached,
-    // but for detached control we start both children independently.
     startOne('server', 'npm', ['run', 'start', '-w', '@ship-game/server']);
     startOne('client', 'npm', ['run', 'start', '-w', 'client']);
-    console.log('[start] client http://localhost:4200');
-    console.log('[start] server http://localhost:8787/health');
+    console.log(`[start] client ${clientUrl}`);
+    console.log(`[start] server ${serverUrl}`);
     return;
   }
   if (target === 'client') {
     startOne('client', 'npm', ['run', 'start', '-w', 'client']);
-    console.log('[start] client http://localhost:4200');
+    console.log(`[start] client ${clientUrl}`);
     return;
   }
   if (target === 'server') {
     startOne('server', 'npm', ['run', 'start', '-w', '@ship-game/server']);
-    console.log('[start] server http://localhost:8787/health');
+    console.log(`[start] server ${serverUrl}`);
   }
 }
 
