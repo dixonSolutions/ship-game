@@ -13,7 +13,40 @@ Immersive sailing combat game.
 ./scripts/dp-run.sh ocean1     # run free ocean arena map
 ```
 
-See [docs/darkplaces.md](docs/darkplaces.md) for Flatpak / GitHub Pages remote install.
+## Flatpak install
+
+**Releases** (download assets): https://github.com/dixonSolutions/ship-game/releases/latest  
+
+| Asset | What it is |
+| --- | --- |
+| `com.dixonsolutions.ShipGame.flatpak` | Offline installable bundle |
+| `com.dixonsolutions.ShipGame.flatpakref` | One-shot install that uses the Pages OSTree remote |
+| `shipgame.flatpakrepo` | Remote metadata (same as on Pages) |
+
+**Bundle (from Releases):**
+
+```bash
+flatpak install --user ./com.dixonsolutions.ShipGame.flatpak
+flatpak run com.dixonsolutions.ShipGame
+```
+
+**Remote (GitHub Pages — preferred for updates):**
+
+```bash
+flatpak remote-add --if-not-exists --user shipgame \
+  https://dixonsolutions.github.io/ship-game/shipgame.flatpakrepo
+flatpak install shipgame com.dixonsolutions.ShipGame
+flatpak run com.dixonsolutions.ShipGame
+```
+
+Or install from the ref file (Releases or Pages):
+
+```bash
+flatpak install --user ./com.dixonsolutions.ShipGame.flatpakref
+```
+
+Pages remote home: https://dixonsolutions.github.io/ship-game/  
+Details: [docs/darkplaces.md](docs/darkplaces.md).
 
 ## Quick start (browser, offline)
 

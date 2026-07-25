@@ -57,15 +57,23 @@ CI workflow **Main CI — QuakeC + Flatpak Pages remote** (`.github/workflows/ma
 
 1. Compiles QuakeC with fteqcc  
 2. Builds Flatpak `com.dixonsolutions.ShipGame` into a full OSTree archive  
-3. Uploads **`com.dixonsolutions.ShipGame.flatpak`** to GitHub **Releases** (`flatpak-latest`)  
+3. Uploads to GitHub **Releases** (`flatpak-latest`):
+   - `com.dixonsolutions.ShipGame.flatpak` (bundle)
+   - `com.dixonsolutions.ShipGame.flatpakref` (points at Pages OSTree)
+   - `shipgame.flatpakrepo`
 4. Publishes the full Flatpak remote (`.flatpakrepo` + `.flatpakref` + `repo/`) to GitHub Pages  
 
-### Install from Releases (the .flatpak file)
+### Install from Releases
 
 https://github.com/dixonSolutions/ship-game/releases/latest
 
 ```bash
+# Bundle
 flatpak install --user ./com.dixonsolutions.ShipGame.flatpak
+
+# Or .flatpakref (pulls from the Pages remote)
+flatpak install --user ./com.dixonsolutions.ShipGame.flatpakref
+
 flatpak run com.dixonsolutions.ShipGame
 ```
 

@@ -150,16 +150,24 @@ jobs:
           ## Ship Game Flatpak
 
           - Bundle: \`com.dixonsolutions.ShipGame.flatpak\`
+          - Ref: \`com.dixonsolutions.ShipGame.flatpakref\` (points at the Pages OSTree remote)
+          - Repo file: \`shipgame.flatpakrepo\`
           - Commit: ${GITHUB_SHA}
           - Pages remote: https://$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]').github.io/${GITHUB_REPOSITORY#*/}/
 
-          ### Install from this release
+          ### Install from this release (bundle)
           \`\`\`bash
           flatpak install --user ./com.dixonsolutions.ShipGame.flatpak
           flatpak run com.dixonsolutions.ShipGame
           \`\`\`
 
-          ### Or use the Pages remote (updates)
+          ### Install from this release (flatpakref → Pages remote)
+          \`\`\`bash
+          flatpak install --user ./com.dixonsolutions.ShipGame.flatpakref
+          flatpak run com.dixonsolutions.ShipGame
+          \`\`\`
+
+          ### Or add the Pages remote directly
           \`\`\`bash
           flatpak remote-add --if-not-exists --user shipgame \\
             https://$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]').github.io/${GITHUB_REPOSITORY#*/}/shipgame.flatpakrepo
@@ -167,11 +175,20 @@ jobs:
           \`\`\`
           EOF
           )"
+          cp pages/com.dixonsolutions.ShipGame.flatpakref .
+          cp pages/shipgame.flatpakrepo .
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" com.dixonsolutions.ShipGame.flatpak --clobber
+            gh release upload "$TAG" \
+              com.dixonsolutions.ShipGame.flatpak \
+              com.dixonsolutions.ShipGame.flatpakref \
+              shipgame.flatpakrepo \
+              --clobber
             gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" --latest
           else
-            gh release create "$TAG" com.dixonsolutions.ShipGame.flatpak \
+            gh release create "$TAG" \
+              com.dixonsolutions.ShipGame.flatpak \
+              com.dixonsolutions.ShipGame.flatpakref \
+              shipgame.flatpakrepo \
               --title "$TITLE" --notes "$NOTES" --latest
           fi
 
