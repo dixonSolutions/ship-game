@@ -1,2 +1,4 @@
 // Ship Game startup — free assets only (no proprietary Quake paks)
 exec default.cfg
+// Default arena (textured, sealed). Launcher may also pass +map.
+map ocean1
