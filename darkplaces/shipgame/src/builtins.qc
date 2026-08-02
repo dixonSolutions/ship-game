@@ -1,4 +1,4 @@
-/* Quake / DarkPlaces builtins — signatures match vanilla QuakeC */
+/* Quake / DarkPlaces builtins - signatures match vanilla QuakeC */
 
 void(vector ang) makevectors = #1;
 void(entity e, vector o) setorigin = #2;

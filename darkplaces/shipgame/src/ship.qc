@@ -75,7 +75,7 @@ void() Ship_PlayerThink =
 		if (self.sink_progress > 0.85)
 		{
 			game_over = 2;
-			centerprint(self, "Defeat — the sea claims the hull\n");
+			centerprint(self, "Defeat - the sea claims the hull\n");
 			bprint("Defeat\n");
 		}
 		return;
@@ -158,7 +158,7 @@ void() Ship_InitPlayer =
 	self.is_ai_ship = FALSE;
 	self.solid = SOLID_SLIDEBOX;
 	self.movetype = MOVETYPE_NOCLIP; // ocean buoyancy owns vertical
-	// Model optional — works as invisible hull if no free mdl is shipped yet
+	// Model optional - works as invisible hull if no free mdl is shipped yet
 	setsize(self, '-16 -16 -24', '16 16 32');
 	self.health = 100;
 	self.max_health = 100;

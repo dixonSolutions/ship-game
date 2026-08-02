@@ -26,7 +26,7 @@ void() AI_ShipThink =
 			if (hostiles_alive <= 0 && game_over == 0)
 			{
 				game_over = 1;
-				bprint("Victory — hostile sails broken\n");
+				bprint("Victory - hostile sails broken\n");
 			}
 			remove(self);
 		}

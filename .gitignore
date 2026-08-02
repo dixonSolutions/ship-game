@@ -69,3 +69,8 @@ darkplaces/id1/music/
 darkplaces/id1/docs/
 darkplaces/id1/*.cfg
 darkplaces/id1/accessibility.txt
+# Extracted LibreQuake maps for local/GDR playtests (scripts/dp-extract-lq-maps.sh)
+darkplaces/shipgame/maps/start.bsp
+darkplaces/shipgame/maps/start.lit
+darkplaces/shipgame/maps/lq_e0m1.bsp
+darkplaces/shipgame/maps/ocean1_start_stub.bsp

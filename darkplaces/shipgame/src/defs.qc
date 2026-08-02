@@ -1,5 +1,5 @@
 /*
- * Ship Game — QuakeC definitions for DarkPlaces.
+ * Ship Game - QuakeC definitions for DarkPlaces.
  * Vertical-slice sailing / combat mod (free assets only).
  */
 
@@ -171,7 +171,7 @@ entity	msg_entity;
 .float	ship_pitch;
 .entity	ship_owner;
 
-// Global sailing state (not world entity fields — world edict rejects custom writes)
+// Global sailing state (not world entity fields - world edict rejects custom writes)
 float	wind_dir;		// degrees
 float	wind_str;		// 0..1
 float	weather_id;		// enum
