@@ -126,10 +126,13 @@ jobs:
           flatpak run com.dixonsolutions.ShipGame</pre>
 
           <h2>2. Full GitHub Pages remote (updates via flatpak update)</h2>
-          <pre>flatpak remote-add --if-not-exists --user shipgame ${PAGES_URL}/shipgame.flatpakrepo
-          flatpak install shipgame com.dixonsolutions.ShipGame
+          <p>This remote is <strong>unsigned</strong>. You must use <code>--no-gpg-verify</code>
+          or Flatpak will refuse with <em>Can't pull from untrusted non-gpg verified remote</em>.</p>
+          <pre>flatpak remote-delete --user shipgame 2>/dev/null || true
+          flatpak remote-add --if-not-exists --user --no-gpg-verify shipgame ${PAGES_URL}/shipgame.flatpakrepo
+          flatpak install --user shipgame com.dixonsolutions.ShipGame
           flatpak run com.dixonsolutions.ShipGame</pre>
-          <p>Or one-shot:
+          <p>Or one-shot after the remote exists:
           <a href="com.dixonsolutions.ShipGame.flatpakref">com.dixonsolutions.ShipGame.flatpakref</a></p>
 
           <p><a href="shipgame.flatpakrepo">shipgame.flatpakrepo</a> ·
@@ -167,11 +170,12 @@ jobs:
           flatpak run com.dixonsolutions.ShipGame
           \`\`\`
 
-          ### Or add the Pages remote directly
+          ### Or add the Pages remote directly (unsigned — needs --no-gpg-verify)
           \`\`\`bash
-          flatpak remote-add --if-not-exists --user shipgame \\
+          flatpak remote-delete --user shipgame 2>/dev/null || true
+          flatpak remote-add --if-not-exists --user --no-gpg-verify shipgame \\
             https://$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]').github.io/${GITHUB_REPOSITORY#*/}/shipgame.flatpakrepo
-          flatpak install shipgame com.dixonsolutions.ShipGame
+          flatpak install --user shipgame com.dixonsolutions.ShipGame
           \`\`\`
           EOF
           )"

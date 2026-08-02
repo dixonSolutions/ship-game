@@ -87,11 +87,16 @@ flatpak run com.dixonsolutions.ShipGame
 https://dixonsolutions.github.io/ship-game/
 
 ```bash
-flatpak remote-add --if-not-exists --user shipgame \
+# Unsigned Pages remote — --no-gpg-verify is required
+flatpak remote-delete --user shipgame 2>/dev/null || true
+flatpak remote-add --if-not-exists --user --no-gpg-verify shipgame \
   https://dixonsolutions.github.io/ship-game/shipgame.flatpakrepo
-flatpak install shipgame com.dixonsolutions.ShipGame
+flatpak install --user shipgame com.dixonsolutions.ShipGame
 flatpak run com.dixonsolutions.ShipGame
 ```
+
+Without `--no-gpg-verify`, Flatpak fails with:
+`Can't pull from untrusted non-gpg verified remote`.
 
 App ID: `com.dixonsolutions.ShipGame`  
 Icon: `branding/icons/ship-game.svg` (+ PNG sizes).

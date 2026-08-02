@@ -33,14 +33,20 @@ flatpak run com.dixonsolutions.ShipGame
 
 **Remote (GitHub Pages — preferred for updates):**
 
+The Pages OSTree remote is **unsigned** (no GPG key). You must pass `--no-gpg-verify` when adding it, or Flatpak errors with *Can't pull from untrusted non-gpg verified remote*.
+
 ```bash
-flatpak remote-add --if-not-exists --user shipgame \
+# If a previous add failed, remove it first:
+# flatpak remote-delete --user shipgame 2>/dev/null || true
+# sudo flatpak remote-delete shipgame 2>/dev/null || true
+
+flatpak remote-add --if-not-exists --user --no-gpg-verify shipgame \
   https://dixonsolutions.github.io/ship-game/shipgame.flatpakrepo
-flatpak install shipgame com.dixonsolutions.ShipGame
+flatpak install --user shipgame com.dixonsolutions.ShipGame
 flatpak run com.dixonsolutions.ShipGame
 ```
 
-Or install from the ref file (Releases or Pages):
+Or install from the ref after the remote exists:
 
 ```bash
 flatpak install --user ./com.dixonsolutions.ShipGame.flatpakref
